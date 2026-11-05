@@ -6,8 +6,8 @@
 class Onair < Formula
   desc "Just TV: IPTV player for macOS with no ads, watermarks, accounts or tracking"
   homepage "https://github.com/jorgesousa/onair"
-  url "https://github.com/jorgesousa/onair/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "21a13574c1694cc06e1a16519a69391ad0b8df70dffc57d3701744cbe3719986"
+  url "https://github.com/jorgesousa/onair/archive/refs/tags/v0.1.1.tar.gz"
+  sha256 "465a200f4fdf227afb7fabbc89ca1d14a2c929c9354ed48647863528a6c06d58"
   license "MIT"
   head "https://github.com/jorgesousa/onair.git", branch: "main"
 
