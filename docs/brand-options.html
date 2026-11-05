@@ -1,0 +1,351 @@
+<title>ONAIR Brand Options</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;600;800&family=Unbounded:wght@600;900&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=VT323&family=Schibsted+Grotesk:wght@500;800;900&family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one long contact sheet. Each direction is a full-width band in its own world:
+   icon, wordmark, palette, and a working app thumbnail. The page frame stays neutral graphite. */
+:root{
+  --frame:#16171A; --frame-2:#202227; --frame-line:#2C2F36; --frame-fg:#E9E7E1; --frame-dim:#9A9890;
+  --ui:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --body:"Archivo",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--frame);color:var(--frame-fg);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1180px;margin:0 auto}
+header.top{padding-block:56px 40px;display:grid;gap:14px;border-bottom:1px solid var(--frame-line)}
+header.top h1{font-family:"Archivo Black",var(--body);font-size:clamp(34px,6vw,64px);line-height:.95;margin:0;letter-spacing:-.02em;text-wrap:balance}
+header.top p{margin:0;max-width:62ch;color:var(--frame-dim)}
+.legend{font-family:var(--ui);font-size:12px;color:var(--frame-dim);display:flex;flex-wrap:wrap;gap:8px 20px}
+.legend b{color:var(--frame-fg);font-weight:600}
+
+section.opt{margin-top:36px;border-radius:28px;overflow:hidden;background:var(--bg);color:var(--fg);
+  display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr)}
+.left{padding:36px;display:flex;flex-direction:column;gap:22px;min-width:0}
+.right{padding:28px;display:flex;align-items:center;justify-content:center;min-width:0;background:var(--stage-bg,transparent)}
+.code{font-family:var(--ui);font-size:12px;letter-spacing:.06em;opacity:.7}
+.brandrow{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.icon{width:128px;height:128px;flex:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.35))}
+.word{font-size:44px;line-height:1;margin:0}
+.idea{margin:0;font-size:15px;max-width:46ch;opacity:.86}
+.why{margin:0;font-family:var(--ui);font-size:12px;opacity:.65;max-width:52ch}
+.sw{display:flex;gap:8px;flex-wrap:wrap}
+.sw span{display:grid;gap:4px;font-family:var(--ui);font-size:10.5px;opacity:.85}
+.sw i{display:block;width:56px;height:40px;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(127,127,127,.25)}
+
+/* Mini app */
+.app{width:100%;max-width:640px;aspect-ratio:16/10;border-radius:16px;overflow:hidden;display:grid;grid-template-columns:38% 1fr;
+  background:var(--a-bg);color:var(--a-fg);box-shadow:0 24px 60px rgba(0,0,0,.45);font-size:11px}
+.rail{border-right:1px solid var(--a-line);padding:14px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rail .mark{display:flex;align-items:center;gap:6px;padding:0 6px 8px}
+.row{display:grid;grid-template-columns:22px 1fr;gap:6px;padding:7px 8px;border-radius:var(--a-r,8px);min-width:0}
+.row .n{font-family:var(--ui);opacity:.45;font-size:9.5px;padding-top:2px}
+.row .t{font-weight:800;font-size:11px;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .s{opacity:.6;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .bar{height:2px;background:var(--a-line);margin-top:4px;border-radius:2px;overflow:hidden}
+.row .bar b{display:block;height:100%;width:var(--p);background:var(--a-acc)}
+.row.on{background:var(--on-bg);color:var(--on-fg)}
+.row.on .n{opacity:.8}
+.row.on .bar{background:color-mix(in srgb,var(--on-fg) 20%,transparent)}
+.row.on .bar b{background:var(--on-fg)}
+.stage{display:grid;grid-template-rows:1fr auto;min-width:0}
+.screen{position:relative;overflow:hidden;background:var(--scr,#000)}
+.now{padding:12px 14px;display:grid;gap:6px;border-top:1px solid var(--a-line)}
+.live{display:inline-flex;align-items:center;gap:5px;font-size:8.5px;font-weight:800;letter-spacing:.12em;padding:3px 7px;border-radius:99px;background:var(--live-bg);color:var(--live-fg);justify-self:start}
+.live:before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.now .pt{font-size:18px;line-height:1.1}
+.now .pb{height:3px;background:var(--a-line);border-radius:3px;overflow:hidden;width:60%}
+.now .pb b{display:block;height:100%;width:42%;background:var(--a-acc)}
+
+/* ---------- 1 · TEST CARD ---------- */
+#test{--bg:#0E0E10;--fg:#F2F0EA;--a-bg:#111114;--a-fg:#F2F0EA;--a-line:#2a2a30;--a-acc:#F2F0EA;--on-bg:#F2F0EA;--on-fg:#0E0E10;--live-bg:#E8332A;--live-fg:#fff;--a-r:2px}
+#test .word,#test .now .pt,#test .row .t{font-family:"Archivo Black",sans-serif}
+#test .bars{display:flex;height:8px;border-radius:2px;overflow:hidden;width:100%}
+#test .bars i{flex:1}
+/* ---------- 2 · TALLY ---------- */
+#tally{--bg:#1C1A19;--fg:#F4EEE6;--a-bg:#1C1A19;--a-fg:#F4EEE6;--a-line:#36312E;--a-acc:#FF3B2F;--on-bg:#2A2523;--on-fg:#F4EEE6;--live-bg:#FF3B2F;--live-fg:#1C1A19;--a-r:10px}
+#tally .word,#tally .now .pt,#tally .row .t{font-family:"Unbounded",sans-serif;font-weight:900}
+#tally .row.on{box-shadow:inset 0 0 0 1.5px #FF3B2F}
+/* ---------- 3 · ULTRAMARINE ---------- */
+#ultra{--bg:#1B2BFF;--fg:#FFFFFF;--a-bg:#1424E6;--a-fg:#FFFFFF;--a-line:rgba(255,255,255,.18);--a-acc:#FFFFFF;--on-bg:#FFFFFF;--on-fg:#1424E6;--live-bg:#FFFFFF;--live-fg:#1424E6;--a-r:0px;--scr:#0A0F66}
+#ultra .word,#ultra .now .pt,#ultra .row .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;letter-spacing:-.01em}
+/* ---------- 4 · VFD ---------- */
+#vfd{--bg:#050807;--fg:#7CFFE4;--a-bg:#070B0A;--a-fg:#7CFFE4;--a-line:#12302A;--a-acc:#7CFFE4;--on-bg:#0E2621;--on-fg:#B6FFF0;--live-bg:#7CFFE4;--live-fg:#050807;--a-r:4px}
+#vfd .word,#vfd .now .pt,#vfd .row .t{font-family:"VT323",monospace;font-weight:400;letter-spacing:.06em;text-shadow:0 0 10px rgba(124,255,228,.55)}
+#vfd .word{font-size:60px}
+#vfd .row .t{font-size:15px}
+#vfd .now .pt{font-size:26px}
+/* ---------- 5 · BROADSIDE (light) ---------- */
+#swiss{--bg:#EDEAE3;--fg:#111;--a-bg:#F6F4EF;--a-fg:#111;--a-line:#D8D3C8;--a-acc:#111;--on-bg:#111;--on-fg:#F6F4EF;--live-bg:#FF4A1C;--live-fg:#fff;--a-r:0px}
+#swiss .word,#swiss .now .pt,#swiss .row .t{font-family:"Schibsted Grotesk",sans-serif;font-weight:900;letter-spacing:-.02em}
+/* ---------- 6 · CHANNEL 9 ---------- */
+#nine{--bg:#FF5BA7;--fg:#160A12;--a-bg:#160A12;--a-fg:#FFE9F3;--a-line:#3A1C2E;--a-acc:#FF5BA7;--on-bg:#FF5BA7;--on-fg:#160A12;--live-bg:#FF5BA7;--live-fg:#160A12;--a-r:12px}
+#nine .word,#nine .now .pt,#nine .row .t{font-family:"Big Shoulders Display",sans-serif;font-weight:900;letter-spacing:.01em;text-transform:uppercase}
+#nine .word{font-size:62px}
+#nine .row .t{font-size:13px}
+#nine .now .pt{font-size:24px}
+/* ---------- 0 · CURRENT ---------- */
+#now{--bg:#0B0C10;--fg:#EDEDE6;--a-bg:#0B0C10;--a-fg:#EDEDE6;--a-line:#1d2028;--a-acc:#C6FF3D;--on-bg:#C6FF3D;--on-fg:#0B0C10;--live-bg:#C6FF3D;--live-fg:#0B0C10;--a-r:10px}
+#now .word,#now .now .pt,#now .row .t{font-family:"Unbounded",sans-serif;font-weight:900}
+
+.tag{font-family:var(--ui);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:4px 10px;border-radius:99px;border:1px solid currentColor;opacity:.7;align-self:flex-start}
+.verdict{display:flex;gap:10px;flex-wrap:wrap;font-family:var(--ui);font-size:12px}
+.verdict span{padding:4px 10px;border-radius:99px;background:color-mix(in srgb,var(--fg) 10%,transparent)}
+
+@media (max-width:860px){ section.opt{grid-template-columns:1fr} .right{padding-top:0} }
+@media (prefers-reduced-motion:no-preference){
+  #vfd .word{animation:flick 6s infinite}
+  @keyframes flick{0%,96%,100%{opacity:1}97%{opacity:.6}98%{opacity:1}99%{opacity:.75}}
+}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <h1>ONAIR: six ways to be on air</h1>
+  <p>Each direction comes from a real piece of television: the test card, the studio tally light, the set-top box display, broadcast blue. Every one carries the same promise: just TV, with no ads, no watermarks, no accounts and no tracking. Pick one, or combine parts of two.</p>
+  <div class="legend"><span><b>Icon</b> as it sits in the Dock</span><span><b>Palette</b> with the one accent last</span><span><b>App</b> with the channel on air highlighted</span></div>
+</header>
+
+<!-- 1 TEST CARD -->
+<section class="opt" id="test">
+  <div class="left">
+    <span class="tag">01 · Test Card</span>
+    <div class="brandrow">
+      <svg class="icon" viewBox="0 0 128 128" aria-label="Test Card icon">
+        <defs><clipPath id="sq1"><rect width="128" height="128" rx="29"/></clipPath></defs>
+        <g clip-path="url(#sq1)">
+          <rect width="128" height="128" fill="#0E0E10"/>
+          <g transform="translate(0,0)">
+            <rect x="0" y="0" width="18.3" height="78" fill="#F2F0EA"/><rect x="18.3" y="0" width="18.3" height="78" fill="#F5D90A"/>
+            <rect x="36.6" y="0" width="18.3" height="78" fill="#25D6E5"/><rect x="54.9" y="0" width="18.3" height="78" fill="#2BD44E"/>
+            <rect x="73.2" y="0" width="18.3" height="78" fill="#E83CC8"/><rect x="91.5" y="0" width="18.3" height="78" fill="#E8332A"/>
+            <rect x="109.8" y="0" width="18.3" height="78" fill="#2A3BE8"/>
+          </g>
+          <text x="64" y="112" text-anchor="middle" font-family="Archivo Black" font-size="27" fill="#F2F0EA" letter-spacing="-.5">ONAIR</text>
+        </g>
+      </svg>
+      <div style="display:grid;gap:10px">
+        <h2 class="word">ONAIR</h2>
+        <div class="bars"><i style="background:#F2F0EA"></i><i style="background:#F5D90A"></i><i style="background:#25D6E5"></i><i style="background:#2BD44E"></i><i style="background:#E83CC8"></i><i style="background:#E8332A"></i><i style="background:#2A3BE8"></i></div>
+      </div>
+    </div>
+    <p class="idea">The colour bars are the image everyone knows from television. The app itself stays black and white; the seven bars show only on the mark, the loading screen and the thin progress lines.</p>
+    <div class="sw"><span><i style="background:#0E0E10"></i>Ink</span><span><i style="background:#F2F0EA"></i>Paper</span><span><i style="background:linear-gradient(90deg,#F5D90A 0 20%,#25D6E5 0 40%,#2BD44E 0 60%,#E83CC8 0 80%,#E8332A 0)"></i>Bars</span></div>
+    <p class="why">Type: Archivo Black. Selection is inverted to paper, so colour stays special. Risk: the bars could feel retro if used too often.</p>
+  </div>
+  <div class="right">
+    <div class="app">
+      <div class="rail">
+        <div class="mark"><b style="font-family:'Archivo Black';font-size:13px">ONAIR</b></div>
+        <div class="row"><span class="n">001</span><div><div class="t">RTP 1</div><div class="s">Joker</div><div class="bar"><b style="--p:30%"></b></div></div></div>
+        <div class="row on"><span class="n">002</span><div><div class="t">SIC</div><div class="s">Jornal da Noite</div><div class="bar"><b style="--p:70%"></b></div></div></div>
+        <div class="row"><span class="n">003</span><div><div class="t">TVI</div><div class="s">Pausa na programação</div><div class="bar"><b style="--p:55%"></b></div></div></div>
+        <div class="row"><span class="n">004</span><div><div class="t">RTP 2</div><div class="s">Jornal 2</div><div class="bar"><b style="--p:20%"></b></div></div></div>
+      </div>
+      <div class="stage">
+        <div class="screen" style="display:flex"><i style="flex:1;background:#F2F0EA"></i><i style="flex:1;background:#F5D90A"></i><i style="flex:1;background:#25D6E5"></i><i style="flex:1;background:#2BD44E"></i><i style="flex:1;background:#E83CC8"></i><i style="flex:1;background:#E8332A"></i><i style="flex:1;background:#2A3BE8"></i></div>
+        <div class="now"><span class="live">LIVE</span><div class="pt">Jornal da Noite</div><div class="pb"><b></b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 TALLY -->
+<section class="opt" id="tally">
+  <div class="left">
+    <span class="tag">02 · Tally</span>
+    <div class="brandrow">
+      <svg class="icon" viewBox="0 0 128 128" aria-label="Tally icon">
+        <rect width="128" height="128" rx="29" fill="#1C1A19"/>
+        <rect x="16" y="40" width="96" height="48" rx="12" fill="#FF3B2F"/>
+        <rect x="16" y="40" width="96" height="48" rx="12" fill="none" stroke="#FF8A7E" stroke-opacity=".5" stroke-width="2"/>
+        <text x="64" y="72" text-anchor="middle" font-family="Unbounded" font-weight="900" font-size="17" fill="#1C1A19">ON AIR</text>
+      </svg>
+      <h2 class="word">ONAIR</h2>
+    </div>
+    <p class="idea">The lit sign outside a studio: warm graphite and one hot red. The channel on air gets a red outline, like the tally light on the camera that is live. The most literal of the six, so it reads instantly.</p>
+    <div class="sw"><span><i style="background:#1C1A19"></i>Graphite</span><span><i style="background:#2A2523"></i>Raised</span><span><i style="background:#F4EEE6"></i>Paper</span><span><i style="background:#FF3B2F"></i>Tally</span></div>
+    <p class="why">Type: Unbounded. Red here means "live", not "error": errors take a neutral style. Risk: red sign icons are common.</p>
+  </div>
+  <div class="right">
+    <div class="app">
+      <div class="rail">
+        <div class="mark"><span class="live" style="font-family:Unbounded">ON AIR</span></div>
+        <div class="row"><span class="n">001</span><div><div class="t">RTP 1</div><div class="s">Joker</div><div class="bar"><b style="--p:30%"></b></div></div></div>
+        <div class="row on"><span class="n">002</span><div><div class="t">SIC</div><div class="s">Jornal da Noite</div><div class="bar"><b style="--p:70%"></b></div></div></div>
+        <div class="row"><span class="n">003</span><div><div class="t">TVI</div><div class="s">Pausa na programação</div><div class="bar"><b style="--p:55%"></b></div></div></div>
+        <div class="row"><span class="n">004</span><div><div class="t">RTP 2</div><div class="s">Jornal 2</div><div class="bar"><b style="--p:20%"></b></div></div></div>
+      </div>
+      <div class="stage">
+        <div class="screen" style="background:radial-gradient(120% 90% at 30% 30%,#3a2a24,#0c0a09)"></div>
+        <div class="now"><span class="live">LIVE</span><div class="pt">Jornal da Noite</div><div class="pb"><b></b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ULTRAMARINE -->
+<section class="opt" id="ultra">
+  <div class="left">
+    <span class="tag">03 · Broadcast Blue</span>
+    <div class="brandrow">
+      <svg class="icon" viewBox="0 0 128 128" aria-label="Broadcast Blue icon">
+        <rect width="128" height="128" rx="29" fill="#1B2BFF"/>
+        <circle cx="50" cy="64" r="26" fill="#fff"/>
+        <rect x="82" y="38" width="16" height="52" fill="#fff"/>
+      </svg>
+      <h2 class="word">ONAIR</h2>
+    </div>
+    <p class="idea">Inspired by the blue of a TV with no input. The whole app is blue with white type, and the channel on air turns solid white. The mark is a filled O and a bar: "on", or a power switch. No one else in the Dock looks like this.</p>
+    <div class="sw"><span><i style="background:#1B2BFF"></i>Blue</span><span><i style="background:#1424E6"></i>Deep</span><span><i style="background:#0A0F66"></i>Screen</span><span><i style="background:#FFFFFF"></i>White</span></div>
+    <p class="why">Type: Bricolage Grotesque. Square corners. Risk: a coloured app chrome is unusual on the Mac, so the blue has to be dark enough to watch beside at night.</p>
+  </div>
+  <div class="right">
+    <div class="app">
+      <div class="rail">
+        <div class="mark"><svg width="30" height="16" viewBox="0 0 30 16"><circle cx="8" cy="8" r="7" fill="#fff"/><rect x="19" y="1" width="5" height="14" fill="#fff"/></svg><b style="font-family:'Bricolage Grotesque';font-size:14px">ONAIR</b></div>
+        <div class="row"><span class="n">001</span><div><div class="t">RTP 1</div><div class="s">Joker</div><div class="bar"><b style="--p:30%"></b></div></div></div>
+        <div class="row on"><span class="n">002</span><div><div class="t">SIC</div><div class="s">Jornal da Noite</div><div class="bar"><b style="--p:70%"></b></div></div></div>
+        <div class="row"><span class="n">003</span><div><div class="t">TVI</div><div class="s">Pausa na programação</div><div class="bar"><b style="--p:55%"></b></div></div></div>
+        <div class="row"><span class="n">004</span><div><div class="t">RTP 2</div><div class="s">Jornal 2</div><div class="bar"><b style="--p:20%"></b></div></div></div>
+      </div>
+      <div class="stage">
+        <div class="screen" style="display:grid;place-items:center"><span style="font-family:'Bricolage Grotesque';font-weight:800;font-size:22px;color:#fff;opacity:.9">TUNING IN · SIC</span></div>
+        <div class="now"><span class="live">LIVE</span><div class="pt">Jornal da Noite</div><div class="pb"><b></b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 VFD -->
+<section class="opt" id="vfd">
+  <div class="left">
+    <span class="tag">04 · Set-Top</span>
+    <div class="brandrow">
+      <svg class="icon" viewBox="0 0 128 128" aria-label="Set-Top icon">
+        <defs><filter id="glow"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <rect width="128" height="128" rx="29" fill="#050807"/>
+        <rect x="14" y="40" width="100" height="48" rx="6" fill="#0A1412" stroke="#12302A"/>
+        <text x="64" y="76" text-anchor="middle" font-family="VT323" font-size="40" fill="#7CFFE4" filter="url(#glow)" letter-spacing="2">ON 01</text>
+      </svg>
+      <h2 class="word">ONAIR</h2>
+    </div>
+    <p class="idea">The glowing cyan display on a cable box or a 90s VCR: "ON 01". Channel numbers are the main element, and changing channel flickers the display like real hardware. Warm nostalgia, but sharp.</p>
+    <div class="sw"><span><i style="background:#050807"></i>Black</span><span><i style="background:#0E2621"></i>Glass</span><span><i style="background:#12302A"></i>Grid</span><span><i style="background:#7CFFE4"></i>Phosphor</span></div>
+    <p class="why">Type: VT323 for numbers and names, a plain sans for programme titles. Risk: a dot-matrix face is hard to read for long text, so keep it to short labels.</p>
+  </div>
+  <div class="right">
+    <div class="app">
+      <div class="rail">
+        <div class="mark"><b style="font-family:VT323;font-size:20px;letter-spacing:.08em;text-shadow:0 0 8px rgba(124,255,228,.6)">ONAIR</b></div>
+        <div class="row"><span class="n">001</span><div><div class="t">RTP 1</div><div class="s" style="font-family:var(--body)">Joker</div><div class="bar"><b style="--p:30%"></b></div></div></div>
+        <div class="row on"><span class="n">002</span><div><div class="t">SIC</div><div class="s" style="font-family:var(--body)">Jornal da Noite</div><div class="bar"><b style="--p:70%"></b></div></div></div>
+        <div class="row"><span class="n">003</span><div><div class="t">TVI</div><div class="s" style="font-family:var(--body)">Pausa na programação</div><div class="bar"><b style="--p:55%"></b></div></div></div>
+        <div class="row"><span class="n">004</span><div><div class="t">RTP 2</div><div class="s" style="font-family:var(--body)">Jornal 2</div><div class="bar"><b style="--p:20%"></b></div></div></div>
+      </div>
+      <div class="stage">
+        <div class="screen" style="display:grid;place-items:center;background:#000"><span style="font-family:VT323;font-size:44px;color:#7CFFE4;text-shadow:0 0 14px rgba(124,255,228,.7)">CH 002</span></div>
+        <div class="now"><span class="live">LIVE</span><div class="pt">Jornal da Noite</div><div class="pb"><b></b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 BROADSIDE -->
+<section class="opt" id="swiss">
+  <div class="left">
+    <span class="tag">05 · Broadside</span>
+    <div class="brandrow">
+      <svg class="icon" viewBox="0 0 128 128" aria-label="Broadside icon">
+        <rect width="128" height="128" rx="29" fill="#EDEAE3"/>
+        <text x="14" y="78" font-family="Schibsted Grotesk" font-weight="900" font-size="44" fill="#111" letter-spacing="-2">ON</text>
+        <circle cx="100" cy="64" r="12" fill="#FF4A1C"/>
+      </svg>
+      <h2 class="word">ONAIR</h2>
+    </div>
+    <p class="idea">Swiss-poster type: a light background, very heavy black lettering and one red-orange dot. A light theme when every other video app is dark. The video sits in a black frame, so the room still goes dark around the picture.</p>
+    <div class="sw"><span><i style="background:#EDEAE3"></i>Stock</span><span><i style="background:#F6F4EF"></i>Sheet</span><span><i style="background:#111"></i>Black</span><span><i style="background:#FF4A1C"></i>Dot</span></div>
+    <p class="why">Type: Schibsted Grotesk Black. Square corners, no radius. Risk: a light sidebar is bright at night, so it needs a dark variant.</p>
+  </div>
+  <div class="right">
+    <div class="app">
+      <div class="rail">
+        <div class="mark"><b style="font-family:'Schibsted Grotesk';font-weight:900;font-size:15px;letter-spacing:-.02em">ONAIR</b><i style="width:7px;height:7px;border-radius:50%;background:#FF4A1C"></i></div>
+        <div class="row"><span class="n">001</span><div><div class="t">RTP 1</div><div class="s">Joker</div><div class="bar"><b style="--p:30%"></b></div></div></div>
+        <div class="row on"><span class="n">002</span><div><div class="t">SIC</div><div class="s">Jornal da Noite</div><div class="bar"><b style="--p:70%"></b></div></div></div>
+        <div class="row"><span class="n">003</span><div><div class="t">TVI</div><div class="s">Pausa na programação</div><div class="bar"><b style="--p:55%"></b></div></div></div>
+        <div class="row"><span class="n">004</span><div><div class="t">RTP 2</div><div class="s">Jornal 2</div><div class="bar"><b style="--p:20%"></b></div></div></div>
+      </div>
+      <div class="stage">
+        <div class="screen" style="background:#111;display:grid;place-items:center"><span style="font-family:'Schibsted Grotesk';font-weight:900;font-size:40px;color:#EDEAE3;letter-spacing:-.03em">JUST TV<span style="color:#FF4A1C">.</span></span></div>
+        <div class="now"><span class="live">LIVE</span><div class="pt">Jornal da Noite</div><div class="pb"><b></b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 CHANNEL 9 -->
+<section class="opt" id="nine">
+  <div class="left">
+    <span class="tag">06 · Prime Time</span>
+    <div class="brandrow">
+      <svg class="icon" viewBox="0 0 128 128" aria-label="Prime Time icon">
+        <rect width="128" height="128" rx="29" fill="#160A12"/>
+        <text x="64" y="94" text-anchor="middle" font-family="Big Shoulders Display" font-weight="900" font-size="88" fill="#FF5BA7">ON</text>
+      </svg>
+      <h2 class="word">ONAIR</h2>
+    </div>
+    <p class="idea">Loud and confident, like a late-night channel ident: hot pink on plum-black, tall condensed capitals. Channel names in big type like on-screen graphics. The most daring of the six and the least "tech".</p>
+    <div class="sw"><span><i style="background:#160A12"></i>Plum</span><span><i style="background:#3A1C2E"></i>Line</span><span><i style="background:#FFE9F3"></i>Blush</span><span><i style="background:#FF5BA7"></i>Pink</span></div>
+    <p class="why">Type: Big Shoulders Display. Risk: polarising, which suits a project that wants to stand out.</p>
+  </div>
+  <div class="right">
+    <div class="app">
+      <div class="rail">
+        <div class="mark"><b style="font-family:'Big Shoulders Display';font-weight:900;font-size:20px;color:#FF5BA7">ONAIR</b></div>
+        <div class="row"><span class="n">001</span><div><div class="t">RTP 1</div><div class="s">Joker</div><div class="bar"><b style="--p:30%"></b></div></div></div>
+        <div class="row on"><span class="n">002</span><div><div class="t">SIC</div><div class="s">Jornal da Noite</div><div class="bar"><b style="--p:70%"></b></div></div></div>
+        <div class="row"><span class="n">003</span><div><div class="t">TVI</div><div class="s">Pausa na programação</div><div class="bar"><b style="--p:55%"></b></div></div></div>
+        <div class="row"><span class="n">004</span><div><div class="t">RTP 2</div><div class="s">Jornal 2</div><div class="bar"><b style="--p:20%"></b></div></div></div>
+      </div>
+      <div class="stage">
+        <div class="screen" style="background:radial-gradient(100% 80% at 70% 30%,#5a1640,#0b0509)"></div>
+        <div class="now"><span class="live">LIVE</span><div class="pt">Jornal da Noite</div><div class="pb"><b></b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CURRENT -->
+<section class="opt" id="now">
+  <div class="left">
+    <span class="tag">Current · Phosphor</span>
+    <div class="brandrow">
+      <svg class="icon" viewBox="0 0 128 128" aria-label="Current icon">
+        <rect width="128" height="128" rx="29" fill="#C6FF3D"/>
+        <rect x="24" y="38" width="66" height="52" rx="18" fill="none" stroke="#0B0C10" stroke-width="14"/>
+        <circle cx="103" cy="30" r="7" fill="#0B0C10"/>
+      </svg>
+      <h2 class="word">ONAIR</h2>
+    </div>
+    <p class="idea">The current version, for comparison. Near-black with one acid green is one of the looks most often produced by default right now, which is likely why it doesn't convince.</p>
+    <div class="sw"><span><i style="background:#0B0C10"></i>Ink</span><span><i style="background:#EDEDE6"></i>Paper</span><span><i style="background:#C6FF3D"></i>Phosphor</span></div>
+  </div>
+  <div class="right">
+    <div class="app">
+      <div class="rail">
+        <div class="mark"><b style="font-family:Unbounded;font-weight:900;font-size:12px">ONAIR</b></div>
+        <div class="row"><span class="n">001</span><div><div class="t">RTP 1</div><div class="s">Joker</div><div class="bar"><b style="--p:30%"></b></div></div></div>
+        <div class="row on"><span class="n">002</span><div><div class="t">SIC</div><div class="s">Jornal da Noite</div><div class="bar"><b style="--p:70%"></b></div></div></div>
+        <div class="row"><span class="n">003</span><div><div class="t">TVI</div><div class="s">Pausa na programação</div><div class="bar"><b style="--p:55%"></b></div></div></div>
+        <div class="row"><span class="n">004</span><div><div class="t">RTP 2</div><div class="s">Jornal 2</div><div class="bar"><b style="--p:20%"></b></div></div></div>
+      </div>
+      <div class="stage">
+        <div class="screen"></div>
+        <div class="now"><span class="live">LIVE</span><div class="pt">Jornal da Noite</div><div class="pb"><b></b></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
