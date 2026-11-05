@@ -3,3 +3,4 @@ build/
 .test-account
 .DS_Store
 .swiftpm/
+brag-output/

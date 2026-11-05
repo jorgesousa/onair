@@ -1,6 +1,10 @@
 # ONAIR
 
-<img src="docs/icon.png" width="128" alt="ONAIR icon">
+<a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">
+  <img src="docs/onair-poster.jpg" width="860" alt="ONAIR, an IPTV player for macOS. Click to watch the 23-second video.">
+</a>
+
+<sub>▶ <a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">Watch with sound</a> · 23 seconds</sub>
 
 **Just TV.** No ads. No watermarks. No accounts. No tracking.
 **Free and open source. Built like it isn't.**
