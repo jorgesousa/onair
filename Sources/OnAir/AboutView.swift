@@ -53,7 +53,7 @@ struct AboutView: View {
             }
             .padding(28)
         }
-        .frame(width: 440)
+        .frame(width: 480)
         .background(Brand.ink)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showUpdate) {
@@ -66,10 +66,12 @@ struct AboutView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 if let r = updates.available {
-                    UpdateTag(version: r.version)
-                    Text("A new version is out.").font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.paper)
+                    VStack(alignment: .leading, spacing: 6) {
+                        UpdateTag(version: r.version)
+                        Text("Version \(r.version) is out.").font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.paper)
+                    }
                     Spacer()
-                    PrimaryButton(title: "Update…") { showUpdate = true }
+                    PrimaryButton(title: "Update") { showUpdate = true }
                 } else {
                     Text(updates.checking ? "Checking…" : (updates.lastResult ?? "Updates are checked once a day."))
                         .font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.dim)
@@ -94,25 +96,42 @@ struct AboutView: View {
     }
 }
 
-/// How to get the new version: by Homebrew, or from source.
+/// How to get the new version, for the way this copy was installed.
 struct UpdateSheet: View {
     let release: UpdateChecker.Release
     let current: String
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
+    /// Homebrew keeps the app under …/Cellar/onair/<version>/OnAir.app (reached through opt/ or a link).
+    private var viaHomebrew: Bool {
+        Bundle.main.bundleURL.resolvingSymlinksInPath().path.contains("/Cellar/onair/")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline) {
-                Text("VERSION \(release.version)").font(Brand.display(26)).foregroundStyle(Brand.paper)
+                Text("UPDATE TO \(release.version)").font(Brand.display(26)).foregroundStyle(Brand.paper)
                 Spacer()
                 Text("you have \(current)").font(Brand.mono(11)).foregroundStyle(Brand.dim)
             }
             Bars().frame(height: 4).clipShape(.capsule)
-            Command(label: "With Homebrew", text: "brew update && brew upgrade onair")
-            Command(label: "From source", text: "git pull && scripts/build-app.sh --install")
-            Text("Quit and reopen ONAIR after updating. Your lists, saved channels and passwords stay.")
-                .font(.system(size: 12)).foregroundStyle(Brand.dim).fixedSize(horizontal: false, vertical: true)
+            if viaHomebrew {
+                Text("ONAIR was installed with Homebrew. Quit ONAIR, then run this in Terminal:")
+                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.paper)
+                    .fixedSize(horizontal: false, vertical: true)
+                Command(label: "Terminal", text: "brew update\nbrew upgrade onair")
+                Text("Then open ONAIR again. Your lists, saved channels and passwords are kept. Homebrew in a separate admin account? Run both commands from that account.")
+                    .font(.system(size: 12)).foregroundStyle(Brand.dim).fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("This copy was built from source. Quit ONAIR, then run this in Terminal, in the folder where you cloned it:")
+                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.paper)
+                    .fixedSize(horizontal: false, vertical: true)
+                Command(label: "Terminal", text: "git pull\nscripts/build-app.sh --install")
+                Text("Prefer updates in one command? Install with Homebrew instead: brew install jorgesousa/tap/onair")
+                    .font(.system(size: 12)).foregroundStyle(Brand.dim).fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
             HStack {
                 SecondaryButton(title: "What's new") { openURL(release.page) }
                 Spacer()
@@ -131,6 +150,7 @@ struct UpdateTag: View {
         HStack(spacing: 6) {
             Mark(size: 9)
             Text("UPDATE \(version)").font(Brand.display(9)).tracking(1.2).foregroundStyle(Brand.ink)
+                .lineLimit(1).fixedSize()
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(Brand.paper, in: .capsule)
@@ -171,6 +191,7 @@ struct PrimaryButton: View {
     var body: some View {
         Button(action: action) {
             Text(title.uppercased()).font(Brand.display(10)).tracking(1).foregroundStyle(Brand.ink)
+                .lineLimit(1).fixedSize()
                 .padding(.horizontal, 16).padding(.vertical, 9)
                 .background(Brand.paper, in: .capsule)
         }

@@ -262,20 +262,23 @@ struct ContentView: View {
 
     private var footer: some View {
         HStack(spacing: 14) {
-            HStack(spacing: 0) {
-            Text("\(visible.count)").font(Brand.mono(11, .semibold)).foregroundStyle(Brand.dim)
-                .contentTransition(.numericText())
-            Text(store.library == .live ? " channels" : store.library == .movies ? " films" : " series")
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text("\(visible.count)").font(Brand.mono(11, .semibold)).foregroundStyle(Brand.dim)
+                    .contentTransition(.numericText())
+                Text(store.library == .live ? " channels" : store.library == .movies ? " films" : " series")
                     .font(Brand.mono(11)).foregroundStyle(Brand.faint)
             }
-            Spacer()
+            .lineLimit(1).fixedSize()
+            Spacer(minLength: 8)
             if let r = updates.available {
+                // a new version takes the place of the key hints
                 Button { showUpdate = true } label: { UpdateTag(version: r.version) }
-                    .buttonStyle(PressStyle()).help("ONAIR \(r.version) is out")
+                    .buttonStyle(PressStyle()).help("ONAIR \(r.version) is out. Click for how to update.")
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
+            } else {
+                KeyHint(keys: "↑↓", label: "Zap")
+                KeyHint(keys: "⏎", label: "Full")
             }
-            KeyHint(keys: "↑↓", label: "Zap")
-            KeyHint(keys: "⏎", label: "Full")
         }
         .animation(Motion.if(reduce, Motion.snap), value: visible.count)
         .padding(.horizontal, 22).frame(height: 40)

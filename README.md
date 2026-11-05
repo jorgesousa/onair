@@ -55,6 +55,18 @@ When a new release is out, an UPDATE tag appears at the bottom of the channel li
 - ONAIR talks to your provider and, once a day, asks GitHub for the latest release number. That request carries nothing about you. Turn it off in About ONAIR → "Check for updates automatically".
 - Films and series are built but hidden (`ContentView.showsLibraries`).
 
+## Releasing a version
+
+```bash
+scripts/release.sh 0.1.2 "- What changed"
+```
+
+The script sets the version in `Support/Info.plist`, tags `vX.Y.Z`, publishes the GitHub release, pins the formula to the new tarball and pushes it to [jorgesousa/homebrew-tap](https://github.com/jorgesousa/homebrew-tap). From then on:
+
+- **ONAIR tells people.** Once a day it asks GitHub for the latest release. If it's newer, an UPDATE tag appears at the bottom of the channel list and in About ONAIR.
+- **The app shows how.** It knows whether it was installed with Homebrew or built from source, and shows the right commands to copy: `brew update` + `brew upgrade onair`, or `git pull` + `scripts/build-app.sh --install`.
+- **Nothing is lost.** Lists, saved channels and passwords stay across updates.
+
 ## Testing
 
 Put a test account in `.test-account` (ignored by Git) with `SERVER`, `USERNAME` and `PASSWORD`, then run `scripts/smoke-test.sh`.
