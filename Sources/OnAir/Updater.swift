@@ -56,7 +56,8 @@ final class Updater {
     private var script: String? {
         switch Self.install {
         case .homebrew(let prefix, let owner):
-            let brew = q(prefix.appendingPathComponent("bin/brew").path)
+            // Call the real brew script, not a link to it: brew finds its own files from where it runs.
+            let brew = q(prefix.appendingPathComponent("bin/brew").resolvingSymlinksInPath().path)
             let run = owner.map { "sudo -u \(q($0)) " } ?? ""
             return "\(run)\(brew) update && \(run)\(brew) upgrade onair"
         case .source(let clone):
@@ -125,13 +126,20 @@ final class Updater {
         } catch { phase = .failed(error.localizedDescription) }
     }
 
-    /// Start the new copy after this one has quit, then quit.
+    /// Quit, and have a helper open the new copy once this process is really gone
+    /// (opening the same app while it still runs would only bring the old one forward).
     private func relaunch() {
+        let pid = ProcessInfo.processInfo.processIdentifier
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/sh")
-        p.arguments = ["-c", "sleep 1; open \(q(relaunchTarget))"]
+        p.arguments = ["-c", "while kill -0 \(pid) 2>/dev/null; do sleep 0.2; done; sleep 0.5; open \(q(relaunchTarget))"]
         try? p.run()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NSApp.terminate(nil) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            NSApp.windows.forEach { w in w.sheets.forEach { w.endSheet($0) } }
+            NSApp.terminate(nil)
+            // A sheet or window can veto a polite quit; the update is installed, so leave anyway.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { exit(0) }
+        }
     }
 
     private func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
