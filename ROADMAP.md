@@ -3,7 +3,10 @@
 ## Now
 - [x] Simplificar: voltar à base 0.1.3 + uma ligação de cada vez ao fornecedor (main = 82903de)
 - [x] Retransmissor, canal virtual e AirPlay experimental guardados no ramo `airplay-experiments`
-- [ ] Confirmar reprodução estável no Mac (imagem + som) com a conta de testes — a conta deu `auth: 0` a 2026-11-08, provável bloqueio temporário
+- [x] Reprodução no Mac testada: RTP 1/1 HD, RTP África, SIC Radical com imagem; RTP Memória só com som (do canal)
+- [x] Aviso SOUND ONLY quando um canal toca sem imagem
+- [x] Sem espera cega de 2 min quando a API do fornecedor não responde (auth 0)
+- [ ] Confirmar o formato de vídeo do RTP Memória quando o fornecedor deixar de bloquear pedidos fora da app
 - [ ] Publicar 0.1.4 com a regra de uma ligação (precisa de OK)
 
 ## Next
