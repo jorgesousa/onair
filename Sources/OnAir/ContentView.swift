@@ -598,7 +598,7 @@ struct SoundOnlyCard: View {
             Image(systemName: "speaker.wave.2.fill")
                 .font(.system(size: 30, weight: .semibold)).foregroundStyle(Brand.paper)
             Text("SOUND ONLY").font(Brand.display(30)).foregroundStyle(Brand.paper)
-            Text("This channel isn't sending a picture this Mac can show. Keep listening, or try its HD version.")
+            Text("This channel isn't sending a picture this Mac can show. Keep listening, or pick another channel.")
                 .font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.dim)
                 .multilineTextAlignment(.center).frame(maxWidth: 360)
             Bars().frame(width: 160, height: 5).clipShape(.capsule)
