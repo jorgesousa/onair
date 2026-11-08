@@ -25,6 +25,7 @@ struct ContentView: View {
     @Environment(UpdateChecker.self) private var updates
     @State private var showUpdate = false
     @State private var playback = PlaybackController()
+    @State private var tv = TVScreen()
     @State private var filter: SidebarItem = .all
     @State private var search = ""
     @State private var selection: Channel.ID?
@@ -287,18 +288,31 @@ struct ContentView: View {
 
     // MARK: Stage
 
+    /// Picture on the TV (a screen connected as a separate display), or back on this Mac.
+    private func toggleTV() {
+        if tv.showing != nil { tv.hide(); return }
+        tv.show(TVScreenView(playback: playback) { c in
+            visible.firstIndex { $0.id == c.id }.map { $0 + 1 }
+        })
+    }
+
     @ViewBuilder private var stage: some View {
         if let c = playback.current {
             VStack(spacing: 0) {
                 ZStack(alignment: .topLeading) {
                     Color.black
+                    if tv.showing != nil {
+                        OnTVScreenView(channel: c, screenName: tv.name) { tv.hide() }
+                            .transition(.opacity)
+                    } else {
                     PlayerView(player: playback.player)
                         .opacity(playback.isTuning ? 0 : 1)
-                    if playback.isTuning {
+                    }
+                    if playback.isTuning, tv.showing == nil {
                         TuningView(channel: c).id(c.id)
                             .transition(.opacity)
                     }
-                    if playback.soundOnly, !playback.isTuning {
+                    if playback.soundOnly, !playback.isTuning, tv.showing == nil {
                         SoundOnlyCard()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .allowsHitTesting(false)
@@ -319,7 +333,8 @@ struct ContentView: View {
                 .animation(Motion.if(reduce, Motion.enter), value: playback.failed)
                 .animation(Motion.if(reduce, Motion.enter), value: playback.soundOnly)
                 NowBar(channel: c, now: store.nowPlaying(c, at: clock), clock: clock,
-                       favourite: store.favorites.contains(c.id)) { store.toggleFavorite(c) }
+                       favourite: store.favorites.contains(c.id),
+                       tv: TVControl(available: tv.available, on: tv.showing != nil, name: tv.name, toggle: toggleTV)) { store.toggleFavorite(c) }
             }
             .transition(.opacity)
         } else {
@@ -394,6 +409,7 @@ struct NowBar: View {
     let now: Programme?
     let clock: Date
     let favourite: Bool
+    var tv: TVControl? = nil
     let toggleFavourite: () -> Void
 
     var body: some View {
@@ -408,6 +424,7 @@ struct NowBar: View {
                 .background(Brand.live, in: .capsule)
                 Text(channel.displayName.uppercased()).font(Brand.display(11, .semibold)).tracking(1).foregroundStyle(Brand.dim)
                 Spacer()
+                if let tv { TVButton(tv: tv) }
                 IconButton(symbol: favourite ? "star.fill" : "star", help: favourite ? "Remove from saved" : "Save",
                            tint: favourite ? Brand.signal : Brand.dim, action: toggleFavourite)
             }
@@ -604,5 +621,67 @@ struct SoundOnlyCard: View {
             Bars().frame(width: 160, height: 5).clipShape(.capsule)
         }
         .padding(32)
+    }
+}
+
+
+/// What the now bar needs to know about the TV screen.
+struct TVControl {
+    let available: Bool
+    let on: Bool
+    let name: String
+    let toggle: () -> Void
+}
+
+/// "ON TV" when a second screen is connected; otherwise a TV icon that explains how to connect one.
+struct TVButton: View {
+    let tv: TVControl
+    @State private var help = false
+    @State private var hover = false
+    var body: some View {
+        if tv.available || tv.on {
+            Button(action: tv.toggle) {
+                HStack(spacing: 7) {
+                    Image(systemName: tv.on ? "laptopcomputer" : "tv").font(.system(size: 11, weight: .bold))
+                    Text(tv.on ? "BACK TO MAC" : "SHOW ON TV").font(Brand.display(9)).tracking(1.2)
+                }
+                .foregroundStyle(tv.on ? Brand.paper : Brand.ink)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(tv.on ? Brand.line : Brand.paper, in: .capsule)
+                .scaleEffect(hover ? 1.04 : 1)
+            }
+            .buttonStyle(PressStyle())
+            .onHover { h in withAnimation(Motion.snap) { hover = h } }
+            .help(tv.on ? "Bring the picture back to this Mac" : "Show the picture full screen on \(tv.name)")
+            .transition(.scale(scale: 0.8).combined(with: .opacity))
+        } else {
+            IconButton(symbol: "tv", help: "Watch on your TV") { help.toggle() }
+                .popover(isPresented: $help, arrowEdge: .top) { TVHowTo() }
+        }
+    }
+}
+
+/// How to connect the TV as a screen, once.
+struct TVHowTo: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("WATCH ON YOUR TV").font(Brand.display(14)).foregroundStyle(Brand.paper)
+            VStack(alignment: .leading, spacing: 8) {
+                step(1, "Open Control Center and choose Screen Mirroring.")
+                step(2, "Pick your TV, then “Use As Separate Display”.")
+                step(3, "Come back here and press SHOW ON TV.")
+            }
+            Text("Your Mac keeps playing, so changing channel is instant.")
+                .font(.system(size: 11, weight: .medium)).foregroundStyle(Brand.dim)
+        }
+        .padding(18).frame(width: 300)
+        .background(Brand.ink)
+    }
+    private func step(_ n: Int, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("\(n)").font(Brand.mono(11, .bold)).foregroundStyle(Brand.ink)
+                .frame(width: 18, height: 18).background(Brand.paper, in: .circle)
+            Text(text).font(.system(size: 12, weight: .medium)).foregroundStyle(Brand.paper)
+        }
     }
 }
