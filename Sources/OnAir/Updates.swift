@@ -53,6 +53,16 @@ final class UpdateChecker {
         guard !checking else { return }
         checking = true
         defer { checking = false }
+        if case .homebrew = Updater.install, let tapped = await Self.tapVersion() {
+            // brew upgrade installs what the tap serves, which can lag the GitHub release.
+            UserDefaults.standard.set(Date.now, forKey: "lastUpdateCheck")
+            let page = URL(string: "https://github.com/\(Self.repo)/releases/tag/v\(tapped)")!
+            UserDefaults.standard.set(tapped, forKey: "latestVersion")
+            UserDefaults.standard.set(page, forKey: "latestPage")
+            if Self.isNewer(tapped, than: currentVersion) { available = Release(version: tapped, page: page); lastResult = nil }
+            else { available = nil; lastResult = "You're on the latest version." }
+            return
+        }
         var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(Self.repo)/releases/latest")!, timeoutInterval: 20)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("OnAir/\(currentVersion)", forHTTPHeaderField: "User-Agent")
@@ -78,6 +88,16 @@ final class UpdateChecker {
         } catch {
             lastResult = "Couldn't reach GitHub."
         }
+    }
+
+    /// The version in the tap's formula (from its url: …/refs/tags/vX.Y.Z.tar.gz).
+    nonisolated static func tapVersion() async -> String? {
+        let url = URL(string: "https://raw.githubusercontent.com/jorgesousa/homebrew-tap/main/Formula/onair.rb")!
+        guard let (data, resp) = try? await URLSession.shared.data(from: url),
+              (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        let text = String(decoding: data, as: UTF8.self)
+        guard let r = text.range(of: #"refs/tags/v([0-9.]+)\.tar\.gz"#, options: .regularExpression) else { return nil }
+        return String(text[r]).replacingOccurrences(of: "refs/tags/v", with: "").replacingOccurrences(of: ".tar.gz", with: "")
     }
 
     nonisolated static func isNewer(_ a: String, than b: String) -> Bool {

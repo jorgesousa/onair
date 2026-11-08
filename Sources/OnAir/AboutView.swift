@@ -97,17 +97,13 @@ struct AboutView: View {
     }
 }
 
-/// How to get the new version, for the way this copy was installed.
+/// Install the new version without leaving ONAIR.
 struct UpdateSheet: View {
     let release: UpdateChecker.Release
     let current: String
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-
-    /// Homebrew keeps the app under …/Cellar/onair/<version>/OnAir.app (reached through opt/ or a link).
-    private var viaHomebrew: Bool {
-        Bundle.main.bundleURL.resolvingSymlinksInPath().path.contains("/Cellar/onair/")
-    }
+    @State private var updater = Updater()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -117,31 +113,58 @@ struct UpdateSheet: View {
                 Text("you have \(current)").font(Brand.mono(11)).foregroundStyle(Brand.dim)
             }
             Bars().frame(height: 4).clipShape(.capsule)
-            if viaHomebrew {
-                Text("ONAIR was installed with Homebrew. Quit ONAIR, then run this in Terminal:")
-                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.paper)
+
+            switch updater.phase {
+            case .idle:
+                Text(Updater.plan).font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.paper)
                     .fixedSize(horizontal: false, vertical: true)
-                Command(label: "Terminal", text: "brew update\nbrew upgrade onair")
-                Text("Then open ONAIR again. Your lists, saved channels and passwords are kept. Homebrew in a separate admin account? Run both commands from that account.")
-                    .font(.system(size: 12)).foregroundStyle(Brand.dim).fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("This copy was built from source. Quit ONAIR, then run this in Terminal, in the folder where you cloned it:")
-                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.paper)
+                Text("Your lists, saved channels and passwords are kept.")
+                    .font(.system(size: 12)).foregroundStyle(Brand.dim)
+            case .running, .done:
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small).tint(Brand.paper)
+                    Text(updater.phase == .done ? "Updated. Restarting ONAIR…" : "Updating. This takes a minute or two.")
+                        .font(.system(size: 14, weight: .semibold)).foregroundStyle(Brand.paper)
+                }
+                logView
+            case .failed(let why):
+                Text(why).font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.paper)
                     .fixedSize(horizontal: false, vertical: true)
-                Command(label: "Terminal", text: "git pull\nscripts/build-app.sh --install")
-                Text("Prefer updates in one command? Install with Homebrew instead: brew install jorgesousa/tap/onair")
-                    .font(.system(size: 12)).foregroundStyle(Brand.dim).fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
+                logView
             }
+
             HStack {
                 SecondaryButton(title: "What's new") { openURL(release.page) }
                 Spacer()
-                PrimaryButton(title: "Done") { dismiss() }.keyboardShortcut(.defaultAction)
+                switch updater.phase {
+                case .idle:
+                    SecondaryButton(title: "Later") { dismiss() }
+                    if Updater.canUpdate {
+                        PrimaryButton(title: "Update now") { updater.start() }.keyboardShortcut(.defaultAction)
+                    }
+                case .failed:
+                    SecondaryButton(title: "Close") { dismiss() }
+                    PrimaryButton(title: "Run in Terminal") { updater.openInTerminal() }
+                case .running, .done:
+                    EmptyView()
+                }
             }
         }
         .padding(28)
         .frame(width: 460)
         .background(Brand.ink)
+        .interactiveDismissDisabled(updater.phase == .running)
+        .animation(Motion.fade, value: updater.phase)
+    }
+
+    /// The last lines of what Homebrew (or git) is doing.
+    private var logView: some View {
+        let lines = updater.log.split(separator: "\n").suffix(6).joined(separator: "\n")
+        return Text(lines.isEmpty ? " " : lines)
+            .font(Brand.mono(10.5)).foregroundStyle(Brand.dim)
+            .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+            .padding(12)
+            .background(Brand.raised, in: .rect(cornerRadius: 10, style: .continuous))
     }
 }
 

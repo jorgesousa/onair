@@ -33,7 +33,9 @@ With Homebrew, once the tap is published: `brew install jorgesousa/tap/onair`.
 
 ## Updates
 
-When a new release is out, an UPDATE tag appears at the bottom of the channel list and in About ONAIR, with the command to run: `brew update && brew upgrade onair` (or `git pull && scripts/build-app.sh --install` from source). Releases are GitHub releases tagged `vX.Y.Z`, matching `CFBundleShortVersionString` in `Support/Info.plist`.
+When a new version is out, an UPDATE tag appears at the bottom of the channel list and in About ONAIR. Press **Update now**: ONAIR runs `brew update` and `brew upgrade onair` itself, shows the progress, and restarts in the new version. No Terminal needed. If Homebrew belongs to another account on the Mac, the same steps open in Terminal so you can type that account's password. Lists, saved channels and passwords are kept.
+
+A Homebrew install compares with the version the tap serves (what `brew upgrade` installs). Releases are GitHub releases tagged `vX.Y.Z`; see "Releasing a version".
 
 ## Keys
 
@@ -50,6 +52,8 @@ When a new release is out, an UPDATE tag appears at the bottom of the channel li
 - `get.php?username=…&password=…` M3U links are read as Xtream accounts, which unlocks the guide.
 - The guide is the account's XMLTV, downloaded once and refreshed every 3 hours. It is not fetched per channel.
 - Playback is AVFoundation, so streams must be HLS. Raw MPEG-TS links are asked for as `/live/…/<id>.m3u8`, which Xtream servers serve.
+- Many providers answer a channel link with a redirect to a session URL. ONAIR resolves it once and plays the session URL: re-requesting the original link on every playlist refresh (what AVFoundation does) opens a new session each time and stalls the stream after ~30 s.
+- A watchdog reconnects on its own when the picture stops for more than a few seconds, the stream fails or ends, or the Mac wakes from sleep, waiting longer after each try (1 s up to 30 s) and never giving up while the channel is picked.
 - Most accounts allow one connection. Switching closes the old stream first and retries a refused one before giving up.
 - Passwords are stored in the Keychain. Everything else is stored in the app's preferences.
 - ONAIR talks to your provider and, once a day, asks GitHub for the latest release number. That request carries nothing about you. Turn it off in About ONAIR → "Check for updates automatically".
@@ -64,7 +68,7 @@ scripts/release.sh 0.1.2 "- What changed"
 The script sets the version in `Support/Info.plist`, tags `vX.Y.Z`, publishes the GitHub release, pins the formula to the new tarball and pushes it to [jorgesousa/homebrew-tap](https://github.com/jorgesousa/homebrew-tap). From then on:
 
 - **ONAIR tells people.** Once a day it asks GitHub for the latest release. If it's newer, an UPDATE tag appears at the bottom of the channel list and in About ONAIR.
-- **The app shows how.** It knows whether it was installed with Homebrew or built from source, and shows the right commands to copy: `brew update` + `brew upgrade onair`, or `git pull` + `scripts/build-app.sh --install`.
+- **The app installs it.** Update now runs `brew upgrade onair` (or `git pull` and the build script for a source build) and restarts ONAIR.
 - **Nothing is lost.** Lists, saved channels and passwords stay across updates.
 
 ## Testing
