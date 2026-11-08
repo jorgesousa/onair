@@ -90,7 +90,7 @@ struct AboutView: View {
                     Text("One request to GitHub a day, with nothing about you in it.").font(.system(size: 11)).foregroundStyle(Brand.faint)
                 }
             }
-            .toggleStyle(.switch).controlSize(.small).tint(Brand.bars[3])
+            .toggleStyle(BarsSwitch())
         }
         .padding(16)
         .background(Brand.raised, in: .rect(cornerRadius: 14, style: .continuous))
@@ -236,5 +236,29 @@ private struct LinkPill: View {
         .buttonStyle(PressStyle())
         .onHover { hover = $0 }
         .animation(Motion.quick, value: hover)
+    }
+}
+
+/// On shows the colour bars, off is grey: no doubt which it is.
+struct BarsSwitch: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 12) {
+            configuration.label
+            Spacer(minLength: 8)
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule().fill(Brand.raised.opacity(1))
+                    .overlay { if configuration.isOn { Bars().clipShape(.capsule) } }
+                    .overlay(Capsule().strokeBorder(Brand.line, lineWidth: 1))
+                Circle().fill(Brand.paper).padding(3)
+                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+            }
+            .frame(width: 44, height: 24)
+            .contentShape(.capsule)
+            .onTapGesture { withAnimation(Motion.snap) { configuration.isOn.toggle() } }
+            .accessibilityElement()
+            .accessibilityLabel("Check for updates automatically")
+            .accessibilityValue(configuration.isOn ? "On" : "Off")
+            .accessibilityAddTraits(.isButton)
+        }
     }
 }
