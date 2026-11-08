@@ -28,6 +28,10 @@ fi
 codesign --force --sign - "$APP"
 echo "Built $APP"
 
+# Keep this working copy out of Launch Services, so Spotlight and "Open With" never pick it
+# over the installed app (same bundle id). The copy in ~/Applications or Homebrew stays the one.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP" 2>/dev/null || true
+
 if [[ $INSTALL == 1 ]]; then
   mkdir -p "$HOME/Applications"
   rm -rf "$HOME/Applications/OnAir.app"

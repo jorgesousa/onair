@@ -27,6 +27,19 @@ final class UpdateChecker {
 
     init() {
         automatic = UserDefaults.standard.object(forKey: "checkForUpdates") as? Bool ?? true
+        // Remember the newest release any check has seen, so a copy that didn't check today
+        // (or is offline) still knows it's behind.
+        let d = UserDefaults.standard
+        if let v = d.string(forKey: "latestVersion"), let page = d.url(forKey: "latestPage"),
+           Self.isNewer(v, than: currentVersion) {
+            available = Release(version: v, page: page)
+        }
+    }
+
+    /// When About opens: check again if the last check is over an hour old.
+    func checkIfStale() async {
+        let last = UserDefaults.standard.object(forKey: "lastUpdateCheck") as? Date ?? .distantPast
+        if last.timeIntervalSinceNow < -3600 { await check() }
     }
 
     func checkIfDue() async {
@@ -53,6 +66,8 @@ final class UpdateChecker {
             let gh = try JSONDecoder().decode(GH.self, from: data)
             let latest = gh.tag_name.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
             UserDefaults.standard.set(Date.now, forKey: "lastUpdateCheck")
+            UserDefaults.standard.set(latest, forKey: "latestVersion")
+            UserDefaults.standard.set(gh.html_url, forKey: "latestPage")
             if Self.isNewer(latest, than: currentVersion) {
                 available = Release(version: latest, page: gh.html_url)
                 lastResult = nil

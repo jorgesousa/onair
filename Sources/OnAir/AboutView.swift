@@ -56,6 +56,7 @@ struct AboutView: View {
         .frame(width: 480)
         .background(Brand.ink)
         .preferredColorScheme(.dark)
+        .task { await updates.checkIfStale() }
         .sheet(isPresented: $showUpdate) {
             if let r = updates.available { UpdateSheet(release: r, current: updates.currentVersion) }
         }
@@ -89,7 +90,7 @@ struct AboutView: View {
                     Text("One request to GitHub a day, with nothing about you in it.").font(.system(size: 11)).foregroundStyle(Brand.faint)
                 }
             }
-            .toggleStyle(.switch).controlSize(.small).tint(Brand.paper)
+            .toggleStyle(.switch).controlSize(.small).tint(Brand.bars[3])
         }
         .padding(16)
         .background(Brand.raised, in: .rect(cornerRadius: 14, style: .continuous))
