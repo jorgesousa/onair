@@ -298,6 +298,12 @@ struct ContentView: View {
                         TuningView(channel: c).id(c.id)
                             .transition(.opacity)
                     }
+                    if playback.soundOnly, !playback.isTuning {
+                        SoundOnlyCard()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .allowsHitTesting(false)
+                            .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    }
                     if let f = playback.failed {
                         HStack(spacing: 10) {
                             Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(Brand.ink)
@@ -311,6 +317,7 @@ struct ContentView: View {
                 }
                 .animation(Motion.if(reduce, Motion.fade), value: playback.isTuning)
                 .animation(Motion.if(reduce, Motion.enter), value: playback.failed)
+                .animation(Motion.if(reduce, Motion.enter), value: playback.soundOnly)
                 NowBar(channel: c, now: store.nowPlaying(c, at: clock), clock: clock,
                        favourite: store.favorites.contains(c.id)) { store.toggleFavorite(c) }
             }
@@ -581,5 +588,21 @@ struct EpisodesView: View {
                 if episodes.isEmpty { error = "This series has no episodes." }
             } catch { self.error = error.localizedDescription }
         }
+    }
+}
+
+/// The channel plays sound but no picture: say so plainly instead of leaving a black screen.
+struct SoundOnlyCard: View {
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "speaker.wave.2.fill")
+                .font(.system(size: 30, weight: .semibold)).foregroundStyle(Brand.paper)
+            Text("SOUND ONLY").font(Brand.display(30)).foregroundStyle(Brand.paper)
+            Text("This channel isn't sending a picture this Mac can show. Keep listening, or try its HD version.")
+                .font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.dim)
+                .multilineTextAlignment(.center).frame(maxWidth: 360)
+            Bars().frame(width: 160, height: 5).clipShape(.capsule)
+        }
+        .padding(32)
     }
 }

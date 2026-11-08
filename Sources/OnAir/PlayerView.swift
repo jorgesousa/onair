@@ -27,6 +27,9 @@ final class PlaybackController {
     /// True from the moment a channel is picked until frames are moving, and whenever
     /// the stream is stalled or being reconnected.
     var isTuning = false
+    /// Playing, but no picture has arrived: the channel sends sound only, or a video format the
+    /// Mac can't decode. Shown on the stage instead of a black screen.
+    var soundOnly = false
 
     /// Each start gets a number; callbacks from an older start are ignored.
     private var generation = 0
@@ -80,7 +83,7 @@ final class PlaybackController {
     /// Switching closes the old stream first and waits a moment before opening the new one:
     /// IPTV accounts usually allow one connection, and the server needs time to free it.
     func play(_ c: Channel) {
-        current = c; failed = nil; isTuning = true; attempt = 0; refused = false
+        current = c; failed = nil; isTuning = true; attempt = 0; refused = false; soundOnly = false
         let hadStream = player.currentItem != nil
         stop()
         start(c, delay: hadStream ? 0.6 : 0, fresh: true)
@@ -128,9 +131,15 @@ final class PlaybackController {
     }
 
     /// Ask the provider how many connections it is counting; wait (up to 2 min) until one is free.
+    /// Some providers don't answer this (auth 0 on the API while streams still play): then give the
+    /// old session a few seconds to close and try, instead of waiting blind for two minutes.
     nonisolated static func waitForFreeSlot(_ a: XtreamAccount) async {
         for _ in 0..<24 {
-            if let (active, max) = await a.connections(), active < max { return }
+            guard let (active, max) = await a.connections() else {
+                try? await Task.sleep(for: .seconds(4))
+                return
+            }
+            if active < max { return }
             try? await Task.sleep(for: .seconds(5))
             if Task.isCancelled { return }
         }
@@ -189,6 +198,11 @@ final class PlaybackController {
         let t = player.currentTime().seconds
         if player.timeControlStatus == .playing {
             if t.isFinite, abs(t - lastTime) > 0.01 { lastTime = t; lastTimeMoved = .now }
+            // Sound has been playing for a while and still no picture.
+            let noPicture = player.currentItem?.presentationSize == .zero
+            if let since = playingSince, Date.now.timeIntervalSince(since) > 6, current?.isLive == true {
+                if soundOnly != noPicture { soundOnly = noPicture }
+            }
             // "Playing" but the clock hasn't moved: frozen picture.
             if Date.now.timeIntervalSince(lastTimeMoved) > 10 { reconnectNow(reason: "frozen") }
             return
