@@ -30,8 +30,8 @@ struct XtreamAccount: Hashable {
     private func api(_ action: String, _ extra: [URLQueryItem] = []) throws -> URL {
         var c = URLComponents(string: base + "/player_api.php")
         c?.queryItems = [.init(name: "username", value: username),
-                         .init(name: "password", value: password),
-                         .init(name: "action", value: action)] + extra
+                         .init(name: "password", value: password)]
+            + (action.isEmpty ? [] : [.init(name: "action", value: action)]) + extra
         guard let u = c?.url else { throw URLError(.badURL) }
         return u
     }
@@ -72,6 +72,15 @@ struct XtreamAccount: Hashable {
         var c = URLComponents(string: base + "/xmltv.php")
         c?.queryItems = [.init(name: "username", value: username), .init(name: "password", value: password)]
         return c?.url
+    }
+
+    /// (active, max) connections the provider is counting for this account.
+    func connections() async -> (Int, Int)? {
+        struct Info: Decodable { struct U: Decodable { let active_cons: Flex?; let max_connections: Flex? }; let user_info: U? }
+        guard let url = try? api(""), let data = try? await Net.data(url),
+              let u = try? JSONDecoder().decode(Info.self, from: data).user_info,
+              let a = u.active_cons?.int, let m = u.max_connections?.int, m > 0 else { return nil }
+        return (a, m)
     }
 
     func movies() async throws -> [Channel] {

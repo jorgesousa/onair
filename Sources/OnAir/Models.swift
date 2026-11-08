@@ -67,3 +67,16 @@ enum SidebarItem: Hashable {
     case recents
     case group(String)
 }
+
+extension Channel {
+    /// Xtream-style stream links (/[live/]user/pass/id) carry the account; use it to ask the
+    /// provider about connections.
+    var xtreamAccount: XtreamAccount? {
+        guard let scheme = url.scheme, let host = url.host else { return nil }
+        var parts = url.path.split(separator: "/").map(String.init)
+        if parts.first == "live" { parts.removeFirst() }
+        guard parts.count == 3, Int((parts[2] as NSString).deletingPathExtension) != nil else { return nil }
+        let server = "\(scheme)://\(host)" + (url.port.map { ":\($0)" } ?? "")
+        return XtreamAccount(server: server, username: parts[0], password: parts[1])
+    }
+}
