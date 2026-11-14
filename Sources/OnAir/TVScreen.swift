@@ -138,63 +138,6 @@ struct TVScreenView: View {
     }
 }
 
-/// The channel card: bars, tuner number, name, what's on. Top left, like a station ident.
-/// Full size on the TV; `scale` shrinks it for the Mac's Watch mode.
-struct ChannelCard: View {
-    let channel: Channel
-    let number: Int?
-    /// Digits being typed to change channel: shown in place of the number.
-    var typed: String? = nil
-    var now: Programme? = nil
-    var clock: Date = .now
-    var scale: CGFloat = 1
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Bars().frame(height: 14 * scale)
-            VStack(alignment: .leading, spacing: 16 * scale) {
-                HStack(alignment: .center, spacing: 22 * scale) {
-                    Text(typed.map { $0.padding(toLength: 3, withPad: "–", startingAt: 0) }
-                         ?? number.map { String(format: "%03d", $0) } ?? "···")
-                        .font(.system(size: 72 * scale, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(Brand.ink)
-                        // Zapping fast keeps the card up and only the number ticks.
-                        .contentTransition(.numericText())
-                        .transaction(value: number) { t in
-                            t.disablesAnimations = false
-                            t.animation = .easeOut(duration: 0.2)
-                        }
-                    VStack(alignment: .leading, spacing: 6 * scale) {
-                        Text(channel.displayName.uppercased())
-                            .font(Brand.display(40 * scale)).foregroundStyle(Brand.ink)
-                            .lineLimit(1).minimumScaleFactor(0.5)
-                        HStack(spacing: 8 * scale) {
-                            Circle().fill(Brand.live).frame(width: 10 * scale, height: 10 * scale)
-                            Text(now.map { "LIVE · \($0.span)" } ?? "LIVE")
-                                .font(Brand.mono(14 * scale, .semibold)).foregroundStyle(Brand.ink.opacity(0.62))
-                        }
-                    }
-                }
-                if let now {
-                    VStack(alignment: .leading, spacing: 10 * scale) {
-                        Text(now.title).font(.system(size: 22 * scale, weight: .semibold)).foregroundStyle(Brand.ink)
-                            .lineLimit(1)
-                        Capsule().fill(Brand.ink.opacity(0.12)).frame(height: 5 * scale)
-                            .overlay(alignment: .leading) {
-                                GeometryReader { g in Capsule().fill(Brand.ink).frame(width: g.size.width * now.progress(at: clock)) }
-                            }
-                    }
-                }
-            }
-            .padding(.horizontal, 34 * scale).padding(.vertical, 26 * scale)
-        }
-        .frame(minWidth: 420 * scale, maxWidth: 820 * scale, alignment: .leading)
-        .fixedSize(horizontal: true, vertical: false)
-        .background(Brand.paper)
-        .clipShape(.rect(cornerRadius: 10 * scale, style: .continuous))
-        .shadow(color: .black.opacity(0.4), radius: 30 * scale, y: 10 * scale)
-    }
-}
-
 /// On the Mac while the picture is on the TV screen.
 struct OnTVScreenView: View {
     let channel: Channel
@@ -217,22 +160,3 @@ struct OnTVScreenView: View {
     }
 }
 
-/// On the Mac while the picture plays in Picture in Picture: ours instead of AVKit's grey placeholder.
-struct InPictureInPictureView: View {
-    let channel: Channel
-    var body: some View {
-        ZStack {
-            Brand.ink
-            VStack(spacing: 18) {
-                Image(systemName: "pip").font(.system(size: 46, weight: .semibold)).foregroundStyle(Brand.paper)
-                Text("IN THE SMALL WINDOW").font(Brand.display(36)).foregroundStyle(Brand.paper)
-                Text("\(channel.displayName) is playing in Picture in Picture. Close the small window, or pick a channel, to bring the picture back here.")
-                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.dim)
-                    .multilineTextAlignment(.center).frame(maxWidth: 440)
-                Bars().frame(width: 220, height: 6).clipShape(.capsule)
-            }
-            .rise()
-        }
-        .allowsHitTesting(false)
-    }
-}
