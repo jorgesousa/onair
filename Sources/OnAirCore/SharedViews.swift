@@ -136,7 +136,8 @@ struct NowBar: View {
     var next: Programme? = nil
     let clock: Date
     let favourite: Bool
-    var tv: TVControl? = nil
+    /// Something each app puts beside the save star (the Mac: its TV button).
+    var accessory: AnyView? = nil
     /// Over the picture (window too wide and short for it to sit below): a scrim instead of the ink strip.
     var floating = false
     let toggleFavourite: () -> Void
@@ -154,7 +155,7 @@ struct NowBar: View {
                 .background(Brand.live, in: .capsule)
                 Text(channel.displayName.uppercased()).font(Brand.display(11, .semibold)).tracking(1).foregroundStyle(Brand.dim)
                 Spacer()
-                if let tv { TVButton(tv: tv) }
+                if let accessory { accessory }
                 IconButton(symbol: favourite ? "star.fill" : "star", help: favourite ? "Remove from saved" : "Save",
                            tint: favourite ? Brand.signal : Brand.dim, action: toggleFavourite)
             }

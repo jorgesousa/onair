@@ -80,3 +80,15 @@ extension Channel {
         return XtreamAccount(server: server, username: parts[0], password: parts[1])
     }
 }
+
+extension Channel {
+    /// "PT: RTP 1" → "RTP 1". Country prefixes are noise once you've picked a list.
+    var displayName: String {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        var out = n
+        if let r = out.range(of: #"^[A-Z]{2,4}\s*[:|\-]\s*"#, options: .regularExpression) { out = String(out[r.upperBound...]) }
+        // Trailing tags lists add for machines: "(1080p)", "[Not 24/7]", "[Geo-blocked]".
+        out = out.replacingOccurrences(of: #"(\s*(\(\d{3,4}[pi]\)|\[[^\]]*\]))+\s*$"#, with: "", options: .regularExpression)
+        return out.isEmpty ? n : out
+    }
+}

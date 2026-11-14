@@ -11,3 +11,8 @@ import Testing
     #expect(channels.first?.epgID == "a")
     #expect(channels.first?.url == URL(string: "http://x/1.ts"))
 }
+
+@Test func displayNameDropsCountryPrefixAndTags() {
+    let c = Channel(name: "PT: RTP 1 (1080p)", group: "", logo: nil, url: URL(string: "http://x/1")!)
+    #expect(c.displayName == "RTP 1")
+}

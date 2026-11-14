@@ -5,18 +5,6 @@ extension Notification.Name {
     static let previousChannel = Notification.Name("OnAir.previousChannel")
 }
 
-extension Channel {
-    /// "PT: RTP 1" → "RTP 1". Country prefixes are noise once you've picked a list.
-    var displayName: String {
-        let n = name.trimmingCharacters(in: .whitespaces)
-        var out = n
-        if let r = out.range(of: #"^[A-Z]{2,4}\s*[:|\-]\s*"#, options: .regularExpression) { out = String(out[r.upperBound...]) }
-        // Trailing tags lists add for machines: "(1080p)", "[Not 24/7]", "[Geo-blocked]".
-        out = out.replacingOccurrences(of: #"(\s*(\(\d{3,4}[pi]\)|\[[^\]]*\]))+\s*$"#, with: "", options: .regularExpression)
-        return out.isEmpty ? n : out
-    }
-}
-
 struct ContentView: View {
     /// Movies and series are hidden for now; the code stays. Set to true to bring them back.
     static let showsLibraries = false
@@ -524,7 +512,7 @@ struct ContentView: View {
     private func nowBar(_ c: Channel, now: Programme?, floating: Bool) -> some View {
         NowBar(channel: c, now: now, next: store.upNext(c, at: clock), clock: clock,
                favourite: store.favorites.contains(c.id),
-               tv: TVControl(available: tv.available, on: tv.showing != nil, name: tv.name, toggle: toggleTV),
+               accessory: AnyView(TVButton(tv: TVControl(available: tv.available, on: tv.showing != nil, name: tv.name, toggle: toggleTV))),
                floating: floating) { store.toggleFavorite(c) }
     }
 

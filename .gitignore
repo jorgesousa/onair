@@ -5,3 +5,6 @@ build/
 .swiftpm/
 brag-output/
 .superpowers/
+iPad/build/
+xcuserdata/
+*.xcuserstate
