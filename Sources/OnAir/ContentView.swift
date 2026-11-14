@@ -155,10 +155,8 @@ struct ContentView: View {
     }
 
     private func step(_ delta: Int) {
-        let list = visible
-        guard !list.isEmpty else { return }
-        let i = list.firstIndex { $0.id == selection } ?? (delta > 0 ? -1 : list.count)
-        select(list[(i + delta + list.count) % list.count].id, keyed: true)
+        guard let id = Zap.step(from: selection, in: visible.map(\.id), by: delta) else { return }
+        select(id, keyed: true)
     }
 
     /// Clicks slide the on-air highlight; keys (↑↓, numbers, ⌫) jump, because they repeat all evening.
@@ -200,8 +198,7 @@ struct ContentView: View {
         typedTask?.cancel()
         typed += String(digit)
         if watching { wake(instant: true) }     // the card shows the digits as you type
-        let n = Int(typed) ?? 0
-        if typed.count == 3 || n * 10 > visible.count { commitTyped(); return }
+        if Zap.shouldCommit(typed: typed, count: visible.count) { commitTyped(); return }
         typedTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.2))
             guard !Task.isCancelled else { return }
@@ -210,8 +207,7 @@ struct ContentView: View {
     }
 
     private func commitTyped() {
-        let list = visible
-        if let n = Int(typed), n >= 1, n <= list.count { select(list[n - 1].id, keyed: true) }
+        if let id = Zap.channel(forTyped: typed, in: visible.map(\.id)) { select(id, keyed: true) }
         typed = ""
     }
 
