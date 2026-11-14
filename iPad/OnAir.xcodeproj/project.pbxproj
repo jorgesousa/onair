@@ -7,18 +7,37 @@
 	objects = {
 
 /* Begin PBXFileReference section */
+		0A1B2C3D4E5F60718293A003 /* OnAirUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OnAirUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A1B2C3D4E5F60718293A001 /* OnAir.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OnAir.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A1B2C3D4E5F60718293A002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		0A1B2C3D4E5F60718293B005 /* UITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = UITests; sourceTree = "<group>"; };
 		0A1B2C3D4E5F60718293B001 /* OnAirCore */ = {isa = PBXFileSystemSynchronizedRootGroup; name = OnAirCore; path = ../Sources/OnAirCore; sourceTree = "<group>"; };
 		0A1B2C3D4E5F60718293B002 /* OnAirPad */ = {isa = PBXFileSystemSynchronizedRootGroup; name = OnAirPad; path = ../Sources/OnAirPad; sourceTree = "<group>"; };
 		0A1B2C3D4E5F60718293B003 /* Fonts */ = {isa = PBXFileSystemSynchronizedRootGroup; name = Fonts; path = ../Support/Fonts; sourceTree = "<group>"; };
 		0A1B2C3D4E5F60718293B004 /* Resources */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Resources; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
+/* Begin PBXContainerItemProxy section */
+		0A1B2C3D4E5F60718293C101 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0A1B2C3D4E5F60718293E002 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0A1B2C3D4E5F60718293E001;
+			remoteInfo = OnAir;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFrameworksBuildPhase section */
+		0A1B2C3D4E5F60718293C011 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0A1B2C3D4E5F60718293C001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -36,6 +55,7 @@
 				0A1B2C3D4E5F60718293B002 /* OnAirPad */,
 				0A1B2C3D4E5F60718293B003 /* Fonts */,
 				0A1B2C3D4E5F60718293B004 /* Resources */,
+				0A1B2C3D4E5F60718293B005 /* UITests */,
 				0A1B2C3D4E5F60718293A002 /* Info.plist */,
 				0A1B2C3D4E5F60718293D002 /* Products */,
 			);
@@ -45,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				0A1B2C3D4E5F60718293A001 /* OnAir.app */,
+				0A1B2C3D4E5F60718293A003 /* OnAirUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -77,6 +98,29 @@
 			productReference = 0A1B2C3D4E5F60718293A001 /* OnAir.app */;
 			productType = "com.apple.product-type.application";
 		};
+		0A1B2C3D4E5F60718293E003 /* OnAirUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0A1B2C3D4E5F60718293F003 /* Build configuration list for PBXNativeTarget "OnAirUITests" */;
+			buildPhases = (
+				0A1B2C3D4E5F60718293C012 /* Sources */,
+				0A1B2C3D4E5F60718293C011 /* Frameworks */,
+				0A1B2C3D4E5F60718293C013 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0A1B2C3D4E5F60718293C102 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0A1B2C3D4E5F60718293B005 /* UITests */,
+			);
+			name = OnAirUITests;
+			packageProductDependencies = (
+			);
+			productName = OnAirUITests;
+			productReference = 0A1B2C3D4E5F60718293A003 /* OnAirUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -89,6 +133,10 @@
 				TargetAttributes = {
 					0A1B2C3D4E5F60718293E001 = {
 						CreatedOnToolsVersion = 27.2;
+					};
+					0A1B2C3D4E5F60718293E003 = {
+						CreatedOnToolsVersion = 27.2;
+						TestTargetID = 0A1B2C3D4E5F60718293E001;
 					};
 				};
 			};
@@ -107,12 +155,20 @@
 			projectRoot = "";
 			targets = (
 				0A1B2C3D4E5F60718293E001 /* OnAir */,
+				0A1B2C3D4E5F60718293E003 /* OnAirUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		0A1B2C3D4E5F60718293C003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A1B2C3D4E5F60718293C013 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -129,7 +185,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0A1B2C3D4E5F60718293C012 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0A1B2C3D4E5F60718293C102 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0A1B2C3D4E5F60718293E001 /* OnAir */;
+			targetProxy = 0A1B2C3D4E5F60718293C101 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0A1B2C3D4E5F60718293F101 /* Debug */ = {
@@ -242,6 +313,44 @@
 			};
 			name = Release;
 		};
+		0A1B2C3D4E5F60718293F301 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L4ZLV2Y44P;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sousalab.onair.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+				TEST_TARGET_NAME = OnAir;
+			};
+			name = Debug;
+		};
+		0A1B2C3D4E5F60718293F302 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L4ZLV2Y44P;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sousalab.onair.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+				TEST_TARGET_NAME = OnAir;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -259,6 +368,15 @@
 			buildConfigurations = (
 				0A1B2C3D4E5F60718293F201 /* Debug */,
 				0A1B2C3D4E5F60718293F202 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0A1B2C3D4E5F60718293F003 /* Build configuration list for PBXNativeTarget "OnAirUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0A1B2C3D4E5F60718293F301 /* Debug */,
+				0A1B2C3D4E5F60718293F302 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
