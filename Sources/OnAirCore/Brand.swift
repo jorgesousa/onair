@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 import CoreText
 
 /// ONAIR · "Test Card". Black and white like a broadcast monitor; the seven colour bars
