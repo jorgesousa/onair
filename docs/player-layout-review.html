@@ -1,0 +1,556 @@
+<title>ONAIR Player Layout</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one column of findings. Each pairs a scaled replica of the ONAIR window with the reasoning. Same dark broadcast look as the motion review. */
+:root {
+  color-scheme: dark;
+  --ink: #0E0E10; --raised: #18181B; --panel: #131316;
+  --line: rgba(242, 240, 234, 0.09);
+  --paper: #F2F0EA; --dim: rgba(242, 240, 234, 0.58); --faint: rgba(242, 240, 234, 0.52);
+  --live: #E8332A; --live-text: #FF6A5F; --signal: #F5D90A;
+  --b1: #F2F0EA; --b2: #F5D90A; --b3: #25D6E5; --b4: #2BD44E; --b5: #E83CC8; --b6: #E8332A; --b7: #2A3BE8;
+  --display: "Archivo Black", "Arial Black", Impact, sans-serif;
+  --text: "Inter", -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+html { background: var(--ink); }
+body { background: var(--ink); color: var(--paper); font: 15px/1.6 var(--text); margin: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 48px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.bars { display: flex; } .bars i { flex: 1; }
+.bars i:nth-child(1){background:var(--b1)} .bars i:nth-child(2){background:var(--b2)} .bars i:nth-child(3){background:var(--b3)}
+.bars i:nth-child(4){background:var(--b4)} .bars i:nth-child(5){background:var(--b5)} .bars i:nth-child(6){background:var(--b6)} .bars i:nth-child(7){background:var(--b7)}
+
+header.top { display: grid; gap: 22px; padding-bottom: 40px; border-bottom: 1px solid var(--line); }
+.mark { display: flex; align-items: center; gap: 10px; font: 15px var(--display); }
+.mark .bars { width: 22px; height: 15px; border-radius: 3px; overflow: hidden; }
+h1 { font: clamp(34px, 6vw, 60px)/1 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.lede { color: var(--dim); max-width: 66ch; margin: 0; font-size: 17px; }
+.answer { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.answer div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.answer b { display: block; font: 700 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
+.answer p { margin: 0; color: var(--paper); }
+
+section.block { padding-block: 56px; border-bottom: 1px solid var(--line); display: grid; gap: 28px; }
+.rank { font: 700 12px var(--mono); color: var(--faint); letter-spacing: 0.08em; }
+h2 { font: 26px/1.1 var(--display); margin: 6px 0 12px; text-wrap: balance; }
+.copy p { margin: 0 0 14px; color: var(--dim); max-width: 68ch; }
+.copy p strong { color: var(--paper); font-weight: 600; }
+.split { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 36px; align-items: start; }
+@media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 18px 0; font-size: 13px; }
+.facts dt { font: 700 11px/1.8 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.facts dd { margin: 0; color: var(--paper); }
+pre.recipe { margin: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; font: 12px/1.65 var(--mono); color: var(--dim); overflow-x: auto; white-space: pre; }
+pre.recipe b { color: var(--paper); font-weight: 700; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: 600 12px/1 var(--text); color: var(--paper); background: var(--raised); border: 1px solid var(--line); border-radius: 99px; padding: 9px 14px; cursor: pointer; transition: transform 140ms var(--ease-out), background 140ms; }
+button:hover { background: #222227; } button:active { transform: scale(0.96); }
+button:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 18px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 7px 12px; }
+.seg button.on { background: var(--paper); color: var(--ink); }
+.readout { font: 500 12px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--paper); } .readout .bad { color: var(--live-text); } .readout .ok { color: var(--b4); }
+.label { font: 700 11px var(--mono); letter-spacing: 0.1em; color: var(--faint); text-transform: uppercase; }
+kbd { font: 700 11px var(--mono); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; color: var(--dim); }
+
+/* ---------- The window replica (scales with its container) ---------- */
+.win { container-type: inline-size; position: relative; width: 100%; background: var(--ink); border: 1px solid rgba(242,240,234,0.16); border-radius: 10px; overflow: hidden; transition: aspect-ratio 300ms var(--ease-out); }
+.win .lights { position: absolute; z-index: 9; top: 1.2cqw; left: 1.3cqw; display: flex; gap: 0.6cqw; }
+.win .lights i { width: 1cqw; height: 1cqw; border-radius: 50%; background: #ff5f57; } .win .lights i + i { background: #febc2e; } .win .lights i + i + i { background: #28c840; }
+.win.watch .lights { opacity: 0; }
+.rail { position: absolute; left: 0; top: 0; bottom: 0; width: var(--railw, 29%); background: var(--ink); border-right: 1px solid var(--line); display: flex; flex-direction: column; transition: transform 220ms var(--ease-out), opacity 220ms var(--ease-out); z-index: 4; }
+.rail .head { padding: 3.6cqw 1.8cqw 1cqw; display: flex; align-items: center; gap: 0.7cqw; font: 1.2cqw var(--display); }
+.rail .head .bars { width: 1.8cqw; height: 1.2cqw; border-radius: 0.25cqw; overflow: hidden; }
+.rail .search { margin: 0 1.3cqw; height: 2.9cqw; border-radius: 99px; background: var(--raised); font: 500 1cqw/2.9cqw var(--text); color: var(--faint); padding-left: 1.2cqw; }
+.rail .filters { display: flex; gap: 1.4cqw; padding: 1.3cqw 1.8cqw 0.8cqw; font: 0.85cqw var(--display); letter-spacing: 0.08em; color: var(--dim); border-bottom: 1px solid var(--line); }
+.rail .filters span:first-child { color: var(--signal); }
+.rail .rows { flex: 1; overflow: hidden; padding: 0.5cqw 0.65cqw; }
+.row { display: flex; align-items: center; gap: 1.1cqw; padding: 0.85cqw 1.1cqw; border-radius: 1.1cqw; }
+.row .n { font: 700 0.9cqw var(--mono); color: var(--faint); width: 2.2cqw; }
+.row .t { flex: 1; min-width: 0; }
+.row .c { font: 1cqw var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .p { font: 500 0.95cqw var(--text); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.2cqw; }
+.row .h { height: 0.16cqw; background: var(--line); border-radius: 99px; margin-top: 0.45cqw; max-width: 17cqw; position: relative; }
+.row .h::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--pr, 40%); background: rgba(242,240,234,0.7); border-radius: inherit; }
+.row .logo { width: 2.7cqw; height: 1.7cqw; border-radius: 0.3cqw; background: rgba(242,240,234,0.16); }
+.row.on { background: var(--signal); color: var(--ink); }
+.row.on .n, .row.on .p { color: rgba(14,14,16,0.65); } .row.on .h { background: rgba(14,14,16,0.15); } .row.on .h::after { background: var(--ink); }
+.row.on .logo { background: rgba(14,14,16,0.25); }
+.rail .foot { height: 3.2cqw; border-top: 1px solid var(--line); display: flex; align-items: center; padding: 0 1.8cqw; font: 0.9cqw var(--mono); color: var(--faint); }
+
+.stage { position: absolute; top: 0; bottom: 0; right: 0; left: var(--railw, 29%); transition: left 220ms var(--ease-out); }
+.win.watch .stage { left: 0; }
+.video { position: absolute; left: 0; right: 0; top: 0; bottom: var(--barh, 16%); display: grid; place-items: center; background: #000; transition: bottom 220ms var(--ease-out); }
+.win.watch .video { bottom: 0; }
+.pic { position: relative; width: var(--picw, 100%); aspect-ratio: 16/9; overflow: hidden; background: #102; outline: 1px dashed rgba(242,240,234,0.0); transition: width 300ms var(--ease-out); }
+.pic::before, .pic::after { content: ""; position: absolute; border-radius: 50%; filter: blur(3cqw); }
+.pic::before { width: 55%; height: 75%; left: 8%; top: 12%; background: #3a5cff; }
+.pic::after { width: 45%; height: 60%; right: 6%; bottom: 4%; background: #ffb347; }
+.pic .lower { position: absolute; left: 5%; right: 30%; bottom: 7%; height: 9%; background: rgba(255,255,255,0.88); border-left: 1.2cqw solid #d22; z-index: 1; }
+.pic .lower::after { content: "LOWER THIRD · NEWS TICKER"; position: absolute; left: 1.2cqw; top: 50%; translate: 0 -50%; font: 700 0.95cqw var(--mono); color: #222; letter-spacing: 0.06em; }
+.pic .bug { position: absolute; right: 3.5%; top: 6%; width: 5%; aspect-ratio: 1; border-radius: 0.4cqw; background: rgba(255,255,255,0.75); z-index: 1; }
+
+.nowbar { position: absolute; left: 0; right: 0; bottom: 0; height: var(--barh, 16%); background: var(--ink); border-top: 1px solid var(--line); padding: 0 2cqw; display: flex; flex-direction: column; justify-content: center; gap: 0.75cqw; transition: transform 220ms var(--ease-out), opacity 220ms var(--ease-out); z-index: 3; }
+.win.watch .nowbar { transform: translateY(100%); opacity: 0; }
+.nb-top { display: flex; align-items: center; gap: 1cqw; }
+.pill { display: inline-flex; align-items: center; gap: 0.5cqw; background: var(--live); color: #fff; border-radius: 99px; padding: 0.4cqw 0.9cqw; font: 0.8cqw var(--display); letter-spacing: 0.14em; }
+.pill::before { content: ""; width: 0.5cqw; height: 0.5cqw; border-radius: 50%; background: #fff; }
+.nb-ch { font: 0.95cqw var(--display); letter-spacing: 0.1em; color: var(--dim); flex: 1; }
+.nb-tv { font: 700 0.8cqw var(--mono); letter-spacing: 0.06em; border: 1px solid var(--line); border-radius: 99px; padding: 0.4cqw 0.9cqw; color: var(--dim); }
+.nb-title { display: flex; justify-content: space-between; align-items: baseline; gap: 1cqw; }
+.nb-title b { font: 2.1cqw/1 var(--display); }
+.nb-title span { font: 500 1cqw var(--mono); color: var(--dim); }
+.nb-prog { height: 0.35cqw; width: 26cqw; border-radius: 99px; overflow: hidden; background: var(--line); }
+.nb-prog .bars { height: 100%; width: 62%; }
+.nowbar.over { background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.55) 60%, transparent); border-top: 0; }
+
+/* AVKit's own floating controls (they belong to the video, not to us) */
+.avkit { position: absolute; left: 50%; bottom: 4%; translate: -50% 0; width: 40%; height: 6.5%; min-height: 14px; border-radius: 1.2cqw; background: rgba(40,40,44,0.78); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; gap: 2.2cqw; opacity: 0; transition: opacity 200ms ease-out; z-index: 2; }
+.avkit i { width: 1.3cqw; height: 1.3cqw; border-radius: 0.25cqw; background: rgba(242,240,234,0.75); }
+.avkit i:nth-child(2) { width: 14cqw; height: 0.35cqw; border-radius: 99px; background: rgba(242,240,234,0.35); }
+.avkit.show { opacity: 1; }
+.avtag { position: absolute; left: 50%; bottom: calc(4% + 7.5%); translate: -50% 0; font: 700 0.85cqw var(--mono); letter-spacing: 0.08em; color: var(--paper); opacity: 0; transition: opacity 200ms; white-space: nowrap; z-index: 2; }
+.avkit.show + .avtag { opacity: 0.8; }
+
+/* The ident: Watch mode's info card, top left, same as the TV screen's */
+.ident { position: absolute; left: 3%; top: 6%; z-index: 5; background: var(--paper); color: var(--ink); border-radius: 0.8cqw; overflow: hidden; box-shadow: 0 1.4cqw 4cqw rgba(0,0,0,0.45); opacity: 0; pointer-events: none; min-width: 26cqw; }
+.ident.show { opacity: 1; }
+.ident.fade { transition: opacity 200ms ease-out; }
+.ident.slow { transition: opacity 260ms ease-out; }
+.ident .bars { height: 0.55cqw; }
+.ident .in { display: grid; grid-template-columns: auto 1fr; column-gap: 1.6cqw; padding: 1.2cqw 1.8cqw 1.3cqw; align-items: center; }
+.ident .num { font: 700 3.6cqw/1 var(--mono); font-variant-numeric: tabular-nums; grid-row: span 2; }
+.ident .name { font: 1.9cqw/1.05 var(--display); text-transform: uppercase; }
+.ident .meta { display: flex; align-items: center; gap: 0.6cqw; font: 600 0.95cqw var(--mono); color: rgba(14,14,16,0.62); margin-top: 0.35cqw; }
+.ident .meta .d { width: 0.7cqw; height: 0.7cqw; border-radius: 50%; background: var(--live); }
+.ident .prog { grid-column: 1 / -1; height: 0.3cqw; background: rgba(14,14,16,0.12); border-radius: 99px; margin-top: 1cqw; overflow: hidden; }
+.ident .prog::after { content: ""; display: block; height: 100%; width: 62%; background: var(--ink); }
+
+/* Watch mode: rail hides left, bar hides down (symmetric with how they came) */
+.win.watch .rail { transform: translateX(-100%); opacity: 0; }
+.win.watch.peek .rail { transform: none; opacity: 1; box-shadow: 2cqw 0 5cqw rgba(0,0,0,0.6); }
+.edge { position: absolute; left: 0; top: 0; bottom: 0; width: 1.2%; background: linear-gradient(to right, rgba(245,217,10,0.55), transparent); opacity: 0; transition: opacity 200ms; z-index: 6; }
+.win.watch.edgehint .edge { opacity: 1; }
+.cursor { position: absolute; z-index: 8; width: 1.6cqw; height: 2.2cqw; opacity: 0; transition: left 380ms var(--ease-out), top 380ms var(--ease-out), opacity 200ms; pointer-events: none; }
+.cursor.show { opacity: 1; }
+.cursor svg { width: 100%; height: 100%; }
+.keycap { position: absolute; right: 3%; top: 6%; z-index: 7; font: 700 1.3cqw var(--mono); background: rgba(242,240,234,0.92); color: var(--ink); border-radius: 0.5cqw; padding: 0.5cqw 0.9cqw; opacity: 0; transition: opacity 150ms; }
+.keycap.show { opacity: 1; }
+
+/* Position compare */
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .three { grid-template-columns: minmax(0, 1fr); } }
+.opt { display: grid; gap: 10px; align-content: start; }
+.opt .verdict { font: 700 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.opt .verdict.yes { color: var(--b4); } .opt .verdict.no { color: var(--live-text); } .opt .verdict.mid { color: var(--signal); }
+.opt p { margin: 0; color: var(--dim); font-size: 14px; }
+.opt h3 { margin: 0; font: 17px/1.2 var(--display); }
+
+/* List density compare */
+.lists { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .lists { grid-template-columns: minmax(0, 1fr); } }
+.mini { container-type: inline-size; background: var(--ink); border: 1px solid rgba(242,240,234,0.16); border-radius: 10px; height: 340px; overflow: hidden; }
+.mini .row { padding: 2.6cqw 3.4cqw; gap: 3.4cqw; border-radius: 3.4cqw; margin: 0 2cqw; }
+.mini .row .n { font-size: 2.8cqw; width: 6.5cqw; }
+.mini .row .c { font-size: 3.2cqw; } .mini .row .p { font-size: 3cqw; margin-top: 0.6cqw; }
+.mini .row .h { height: 0.5cqw; margin-top: 1.4cqw; max-width: 55cqw; }
+.mini .row .logo { width: 8.5cqw; height: 5.4cqw; border-radius: 1cqw; }
+.mini.compact .row { padding-block: 1.6cqw; }
+.mini.icons { width: 120px; justify-self: start; }
+.mini.icons .row { flex-direction: column; gap: 4px; padding: 10px 0; margin: 0 8px; border-radius: 10px; }
+.mini.icons .row .n { width: auto; font-size: 11px; }
+.mini.icons .row .logo { width: 48px; height: 30px; border-radius: 5px; display: grid; place-items: center; font: 700 11px var(--mono); color: var(--paper); }
+.mini.icons .row.on .logo { color: rgba(14,14,16,0.6); }
+.mini .top { padding: 4cqw 5.2cqw 3cqw; font: 700 11px var(--mono); letter-spacing: 0.1em; color: var(--faint); text-transform: uppercase; border-bottom: 1px solid var(--line); margin-bottom: 2cqw; }
+.mini.icons .top { padding: 14px 12px 10px; }
+.listcol { display: grid; gap: 10px; align-content: start; }
+
+.rej { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rej li { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; color: var(--dim); }
+.rej li b { color: var(--paper); font-weight: 600; }
+.rej li em { font: 700 11px var(--mono); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--live-text); margin-right: 6px; }
+.verdictbox { background: var(--paper); color: var(--ink); border-radius: 12px; padding: 22px 24px; }
+.verdictbox h2 { margin-top: 0; }
+.verdictbox p { margin: 0 0 10px; max-width: 72ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rail, .nowbar, .stage, .video, .pic, .win { transition-property: opacity !important; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="mark"><span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span> ONAIR · layout review</div>
+    <h1>Where the now bar lives, and when the list steps aside</h1>
+    <p class="lede">Two questions, one answer. The now bar is in the right place while you browse, and it costs the picture nothing at normal window sizes. What's missing is a second state for when you just watch: a <strong>Watch mode</strong> where the list and the bar step aside and come back when you need them. That is the minimal list mode, but as a moment rather than a setting.</p>
+    <div class="answer">
+      <div><b>Now bar</b><p>Keep it docked under the picture while browsing. In Watch mode it becomes the top-left channel card, the same one the TV screen already shows.</p></div>
+      <div><b>Minimal list</b><p>Yes, but tied to watching, not a permanent compact rail. Point at the left edge and the list slides back over the picture.</p></div>
+      <div><b>One rule</b><p>Chrome never shrinks the picture. If the window is too wide and short for the bar to fit, the bar floats over the picture instead.</p></div>
+    </div>
+  </header>
+
+  <!-- 01 · The numbers -->
+  <section class="block">
+    <div class="split">
+      <div class="copy">
+        <div class="rank">01 · WHAT THE DOCKED BAR COSTS</div>
+        <h2>At normal sizes it sits in space that would be black anyway</h2>
+        <p>The rail takes 361 points of width, so the stage is <strong>narrower than 16:9</strong>. A 16:9 picture leaves black bands above and below it. The now bar is about 118 points tall, and at the default window it fits inside those bands. The picture keeps its full size.</p>
+        <p>It only starts to cost picture when the window is <strong>wide and short</strong>. Pick a size: a red outline means the bar is taking picture away.</p>
+        <dl class="facts">
+          <dt>Today</dt><dd><code>VStack { video; NowBar }</code> in <code>ContentView.stage</code>. The bar is always docked and opaque.</dd>
+          <dt>Rule</dt><dd>If the space above the bar is shorter than a 16:9 picture at full width, float the bar over the picture and let it auto-hide.</dd>
+        </dl>
+      </div>
+      <div style="display:grid;gap:12px;min-width:0">
+        <div class="win" id="w1" style="aspect-ratio:1240/720">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <div class="rail" aria-hidden="true">
+            <div class="head"><span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>ONAIR</div>
+            <div class="search">Search channels</div>
+            <div class="filters"><span>ALL</span><span>SAVED</span><span>RECENT</span></div>
+            <div class="rows" data-rows="7"></div>
+            <div class="foot">1 204 channels</div>
+          </div>
+          <div class="stage">
+            <div class="video"><div class="pic"><div class="bug"></div><div class="lower"></div></div></div>
+            
+            <div class="nowbar" data-nowbar></div>
+          </div>
+        </div>
+        <div class="controls">
+          <div class="seg" id="sizes" role="group" aria-label="Window size">
+            <button class="on" data-w="1240" data-h="720">Default 1240×720</button>
+            <button data-w="1512" data-h="982">MacBook full screen</button>
+            <button data-w="960" data-h="560">Smallest</button>
+            <button data-w="1700" data-h="680">Wide and short</button>
+          </div>
+        </div>
+        <div class="controls">
+          <div class="seg" id="rule" role="group" aria-label="Bar behaviour">
+            <button class="on" data-rule="dock">Always docked (today)</button>
+            <button data-rule="smart">Never shrink the picture</button>
+          </div>
+        </div>
+        <div class="readout" id="r1"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 · Three places for the information -->
+  <section class="block">
+    <div class="copy">
+      <div class="rank">02 · THREE PLACES FOR "WHAT'S ON"</div>
+      <h2>The bottom of the picture is already taken</h2>
+      <p>A broadcast keeps its own furniture in the bottom third: subtitles, news tickers, lower thirds. AVKit puts its floating controls there too. A now bar laid over the bottom collides with all of them. The top-left corner is free, and it is where ONAIR's TV screen already puts its channel card.</p>
+    </div>
+    <div class="three">
+      <div class="opt">
+        <div class="win" data-variant="dock" style="aspect-ratio:16/10"></div>
+        <div class="verdict yes">Keep for browsing</div>
+        <h3>Docked under the picture</h3>
+        <p>Always readable, never covers the picture, and it doesn't move. It holds information you read while choosing a channel, so it should stay still.</p>
+      </div>
+      <div class="opt">
+        <div class="win" data-variant="over" style="aspect-ratio:16/10"></div>
+        <div class="verdict no">Avoid</div>
+        <h3>Floating over the bottom</h3>
+        <p>It's the familiar streaming-app look, but here it sits on top of subtitles and tickers. It also stacks on AVKit's controls, which appear in the same spot with the same mouse move.</p>
+      </div>
+      <div class="opt">
+        <div class="win" data-variant="ident" style="aspect-ratio:16/10"></div>
+        <div class="verdict yes">Use for watching</div>
+        <h3>Channel card, top left</h3>
+        <p>The information is ours at the top, the controls are Apple's at the bottom, and they show and hide together. It's the same card as on the TV, so the Mac and the TV look alike.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 · Watch mode -->
+  <section class="block">
+    <div class="split">
+      <div class="copy">
+        <div class="rank">03 · WATCH MODE</div>
+        <h2>The list steps aside while you watch</h2>
+        <p>Today <kbd>⏎</kbd> makes the window full screen, but the list and the bar stay, so "Full" isn't really full. In Watch mode <kbd>⏎</kbd> clears the screen: the list leaves to the left and the bar leaves downward, each the way it came.</p>
+        <p>Nothing is lost. <strong>Move the mouse</strong> and the card and AVKit's controls appear, then fade after 3 seconds. <strong>Press ↑↓</strong> and you change channel without the list; the card shows the new channel at once. <strong>Point at the left edge</strong> and the list slides back over the picture; it leaves again when you pick a channel or move away. <kbd>esc</kbd> brings everything back.</p>
+        <dl class="facts">
+          <dt>Enter / leave</dt><dd>220 ms ease-out, picture grows. Paired with system full screen, let macOS's own animation carry it, not two at once.</dd>
+          <dt>Mouse wakes chrome</dt><dd>Fade in 150 ms, no movement. Hide after 3 s idle with a 260 ms fade.</dd>
+          <dt>Zap card</dt><dd>Keyboard, many times a day: <strong>appears at once</strong>, no slide. Stays 3 s, fades in 200 ms. This replaces the slide-in from proposal 01 in the motion review.</dd>
+          <dt>Rail peek</dt><dd>Hover on the left 8 points, 220 ms slide from the left, over the picture with a shadow. It doesn't push the picture.</dd>
+        </dl>
+      </div>
+      <div style="display:grid;gap:12px;min-width:0">
+        <div class="win" id="w3" style="aspect-ratio:1240/720" data-variant="live"></div>
+        <div class="controls" id="c3">
+          <button data-act="toggle" id="b-toggle">Watch <kbd>⏎</kbd></button>
+          <button data-act="mouse">Move the mouse</button>
+          <button data-act="zap">Next channel <kbd>↓</kbd></button>
+          <button data-act="edge">Point at the left edge</button>
+          <button data-act="pick">Pick a channel</button>
+        </div>
+        <div class="readout" id="r3">Browsing. Rail and now bar visible.</div>
+      </div>
+    </div>
+    <pre class="recipe"><b>// ContentView — one state, two layouts</b>
+@State private var watching = false          <b>// ⏎ toggles, esc clears</b>
+@State private var chromeVisible = true      <b>// mouse wakes it, 3 s idle hides it</b>
+@State private var peekRail = false          <b>// pointer at the left edge</b>
+
+HStack(spacing: 0) {
+    if !watching { rail.frame(width: 360).transition(.move(edge: .leading)) }
+    stage
+}
+.overlay(alignment: .leading) {
+    if watching, peekRail { rail.frame(width: 360).shadow(radius: 30).transition(.move(edge: .leading)) }
+}
+.animation(Motion.if(reduce, .easeOut(duration: 0.22)), value: watching)
+
+<b>// stage in Watch mode: the card replaces the bar</b>
+if watching {
+    PlayerView(player: playback.player)                       <b>// AVKit shows its own controls on mouse move</b>
+    if chromeVisible || zapCardVisible {
+        TVChannelOSD(channel: c, number: n, now: programme)   <b>// same card as the TV, plus title + progress</b>
+            .transition(.opacity)                             <b>// no slide: ↑↓ is a keyboard action</b>
+    }
+} else {
+    VStack(spacing: 0) { video; NowBar(...) }
+}
+.onContinuousHover { _ in wakeChrome() }                      <b>// restarts a 3 s Task, like TVScreenView.showOSD</b></pre>
+  </section>
+
+  <!-- 04 · List density -->
+  <section class="block">
+    <div class="copy">
+      <div class="rank">04 · THE MINIMAL LIST, CONSIDERED</div>
+      <h2>Why not a permanent compact rail</h2>
+      <p>I looked at three densities. The icon-only rail looks the most minimal but works the worst with IPTV. Providers' logos are often missing or wrong, and ONAIR's numbers are <strong>positions in the current list</strong>, so 003 is a different channel under ALL than under SAVED. Without the name you can't tell what you're choosing.</p>
+    </div>
+    <div class="lists">
+      <div class="listcol">
+        <div class="mini" data-list="full"><div class="top">Today · 62 pt rows</div></div>
+        <div class="verdict yes label" style="color:var(--b4)">Keep as the default</div>
+      </div>
+      <div class="listcol">
+        <div class="mini compact" data-list="compact"><div class="top">Compact · 34 pt rows</div></div>
+        <div class="verdict label" style="color:var(--signal)">Later, as a setting, for long lists</div>
+      </div>
+      <div class="listcol">
+        <div class="mini icons" data-list="icons"><div class="top">Icons only</div></div>
+        <div class="verdict label" style="color:var(--live-text)">Reject: no names, unreliable logos</div>
+      </div>
+    </div>
+    <div class="copy"><p>A compact setting (one line per channel: number and name only, about 1.8 times as many channels on screen) is worth it if someone has thousands of channels. It is a preference, not a mode, so it needs no animation. The search field and filters stay as they are.</p></div>
+  </section>
+
+  <!-- 05 · Keep still / rejected -->
+  <section class="block">
+    <div class="copy">
+      <div class="rank">05 · WHAT I'D LEAVE ALONE</div>
+      <h2>Rejected along the way</h2>
+    </div>
+    <ul class="rej">
+      <li><em>Reject</em><b>Auto-hiding the now bar while browsing.</b> It holds information you read while choosing. Text that disappears under you while you read is worse than a fixed strip.</li>
+      <li><em>Reject</em><b>Auto-entering Watch mode after a few idle seconds.</b> The app would decide for you, and the list would vanish while you think. Watch mode starts only with <kbd>⏎</kbd> or full screen.</li>
+      <li><em>Reject</em><b>A rail that collapses to a strip and expands on hover.</b> Every trip to the list becomes a hover wait, tens of times a day. The left-edge peek happens only in Watch mode, where the list is hidden anyway.</li>
+      <li><em>Reject</em><b>Moving the now bar to the top of the window while browsing.</b> The title bar and traffic lights are there, and the information would sit far from the list you're reading.</li>
+      <li><em>Watch</em><b>Two bottom bars today.</b> AVKit's floating controls appear just above the now bar. It's fine while docked, but it's why the floating bottom bar fails in Watch mode.</li>
+    </ul>
+  </section>
+
+  <section class="block" style="border-bottom:0">
+    <div class="verdictbox">
+      <h2>Verdict</h2>
+      <p><strong>Don't move the now bar; add a second state.</strong> While browsing, the docked bar is the right call: it's stable, readable, and at normal sizes it uses space that would be black anyway. The gap is watching. Today ⏎ gives you a bigger window with the same chrome.</p>
+      <p>Watch mode answers both questions with one piece. The list steps aside and comes back from the left edge, the bar becomes the top-left card the TV already uses, and the "never shrink the picture" rule covers wide windows. Build it before proposal 01 of the motion review, because 01's ident is this card.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const CH = [
+    ["RTP 1", "Evening News", 62], ["RTP 1 HD", "Evening News", 62], ["SIC", "Talk Show", 35], ["TVI", "Quiz Night", 80],
+    ["RTP MEMÓRIA", "Classic Series", 20], ["SIC RADICAL", "Late Comedy", 48], ["RTP ÁFRICA", "Documentary", 71], ["CMTV", "Live Debate", 15],
+    ["RTP 2", "Concert", 55], ["SIC NOTÍCIAS", "Headlines", 90], ["TVI 24", "Business", 30], ["EURONEWS", "World Now", 66]
+  ];
+  const rowsHTML = (n, sel = 0, opts = {}) => CH.slice(0, n).map(([c, p, pr], i) => {
+    const num = String(i + 1).padStart(3, "0");
+    if (opts.icons) return `<div class="row${i === sel ? " on" : ""}"><div class="n">${num}</div><div class="logo">${i % 3 === 1 ? "?" : ""}</div></div>`;
+    const sub = opts.compact ? "" : `<div class="p">${p}</div><div class="h" style="--pr:${pr}%"></div>`;
+    return `<div class="row${i === sel ? " on" : ""}"><div class="n">${num}</div><div class="t"><div class="c">${c}</div>${sub}</div><div class="logo"></div></div>`;
+  }).join("");
+  const bars = `<span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>`;
+  const nowbarHTML = (c = CH[0]) => `<div class="nb-top"><span class="pill">LIVE</span><span class="nb-ch">${c[0]}</span><span class="nb-tv">SHOW ON TV</span></div>
+    <div class="nb-title"><b>${c[1]}</b><span>20:00–21:00</span></div><div class="nb-prog">${bars.replace('class="bars"', 'class="bars" style="width:' + c[2] + '%"')}</div>`;
+  const identHTML = (i) => { const c = CH[i]; return `${bars}<div class="in"><div class="num">${String(i + 1).padStart(3, "0")}</div><div class="name">${c[0]}</div><div class="meta"><span class="d"></span>LIVE · ${c[1]} · 20:00–21:00</div><div class="prog"></div></div>`; };
+  const railHTML = (n, sel) => `<div class="head">${bars}ONAIR</div><div class="search">Search channels</div><div class="filters"><span>ALL</span><span>SAVED</span><span>RECENT</span></div><div class="rows">${rowsHTML(n, sel)}</div><div class="foot">1 204 channels</div>`;
+  const cursorSVG = `<svg viewBox="0 0 16 22"><path d="M1 1 L1 17 L5 13 L8 20 L11 19 L8 12 L14 12 Z" fill="#fff" stroke="#000" stroke-width="1.2"/></svg>`;
+
+  // ---- 01: size + rule ----
+  const w1 = document.getElementById("w1");
+  w1.querySelector("[data-rows]").innerHTML = rowsHTML(9, 0);
+  const nb1 = w1.querySelector("[data-nowbar]");
+  nb1.insertAdjacentHTML("afterbegin", nowbarHTML());
+  let size = { w: 1240, h: 720 }, rule = "dock";
+  const BAR = 118, RAIL = 361;
+  function layout1() {
+    const { w, h } = size;
+    const sw = w - RAIL, ideal = sw * 9 / 16, avail = h - BAR;
+    const fits = avail >= ideal;
+    const docked = rule === "dock" || fits;
+    w1.style.aspectRatio = `${w}/${h}`;
+    w1.style.setProperty("--railw", (RAIL / w * 100) + "%");
+    w1.style.setProperty("--barh", docked ? (BAR / h * 100) + "%" : "0%");
+    const picH = docked ? Math.min(avail, ideal) : Math.min(h, ideal);
+    const picW = picH * 16 / 9;
+    w1.querySelector(".pic").style.width = (picW / sw * 100) + "%";
+    nb1.style.height = (BAR / h * 100) + "%";
+    nb1.classList.toggle("over", !docked);
+    const lostPct = Math.round((1 - picH / ideal) * 100);
+    const r = document.getElementById("r1");
+    r.innerHTML = `Stage <b>${sw}×${h}</b> · full-width 16:9 picture needs <b>${Math.round(ideal)}</b> pt · room above the bar <b>${avail}</b> pt<br>` +
+      (fits ? `<span class="ok">The bar fits in the black bands. The picture keeps 100%.</span>`
+            : docked ? `<span class="bad">The docked bar shrinks the picture by ${lostPct}%.</span>`
+                     : `<span class="ok">The bar floats over the picture instead. The picture keeps 100%.</span>`);
+    w1.querySelector(".pic").style.outline = (!fits && docked) ? "2px solid rgba(232,51,42,0.8)" : "0";
+  }
+  document.getElementById("sizes").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#sizes button").forEach(x => x.classList.toggle("on", x === b));
+    size = { w: +b.dataset.w, h: +b.dataset.h }; layout1();
+  });
+  document.getElementById("rule").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#rule button").forEach(x => x.classList.toggle("on", x === b));
+    rule = b.dataset.rule; layout1();
+  });
+  layout1();
+
+  // ---- generic window builder ----
+  function buildWin(el, variant) {
+    const watchish = variant !== "dock" && variant !== "live";
+    el.innerHTML = `<div class="lights"><i></i><i></i><i></i></div>
+      <div class="rail">${railHTML(8, 0)}</div>
+      <div class="edge"></div>
+      <div class="stage">
+        <div class="video"><div class="pic"><div class="bug"></div><div class="lower"></div></div></div>
+        <div class="nowbar">${nowbarHTML()}</div>
+        <div class="avkit"><i></i><i></i><i></i></div><div class="avtag">AVKIT CONTROLS</div>
+        <div class="ident">${identHTML(0)}</div>
+      </div>
+      <div class="keycap">↓</div>
+      <div class="cursor">${cursorSVG}</div>`;
+    el.style.setProperty("--railw", (RAIL / 1240 * 100) + "%");
+    el.style.setProperty("--barh", (BAR / 720 * 100) + "%");
+    const ar = el.style.aspectRatio.split("/").map(Number);
+    const sw = 1 - RAIL / 1240;
+    if (variant === "dock") {
+      el.querySelector(".pic").style.width = "100%";
+    }
+    if (variant === "over") {
+      el.classList.add("watch");
+      const nb = el.querySelector(".nowbar");
+      nb.classList.add("over"); nb.style.transform = "none"; nb.style.opacity = "1"; nb.style.height = "24%";
+      el.querySelector(".avkit").classList.add("show");
+    }
+    if (variant === "ident") {
+      el.classList.add("watch");
+      el.querySelector(".ident").classList.add("show");
+      el.querySelector(".avkit").classList.add("show");
+    }
+    return el;
+  }
+  document.querySelectorAll('.three .win').forEach(el => buildWin(el, el.dataset.variant));
+
+  // ---- 03: watch mode demo ----
+  const w3 = buildWin(document.getElementById("w3"), "live");
+  const r3 = document.getElementById("r3");
+  const id3 = w3.querySelector(".ident"), av3 = w3.querySelector(".avkit"), cur = w3.querySelector(".cursor"), key = w3.querySelector(".keycap");
+  let sel = 0, hideT, keyT, peekT;
+  const say = t => { r3.textContent = t; };
+  const watching = () => w3.classList.contains("watch");
+  function setChannel(i) {
+    sel = i;
+    w3.querySelector(".rows").innerHTML = rowsHTML(8, sel);
+    w3.querySelector(".nowbar").innerHTML = nowbarHTML(CH[sel]);
+    id3.innerHTML = identHTML(sel);
+  }
+  function hideChrome(delay = 3000) {
+    clearTimeout(hideT);
+    hideT = setTimeout(() => {
+      id3.className = "ident slow"; av3.classList.remove("show"); cur.classList.remove("show");
+      if (watching()) say("Watch mode. Chrome faded after 3 s idle.");
+    }, delay);
+  }
+  function showCard(withControls) {
+    id3.className = "ident show";            // appears at once: no transition on the way in
+    void id3.offsetWidth;
+    if (withControls) av3.classList.add("show");
+  }
+  function enter() {
+    w3.classList.remove("peek"); w3.classList.add("watch");
+    document.getElementById("b-toggle").innerHTML = "Back to browse <kbd>esc</kbd>";
+    say("Watch mode. List left, bar down, picture fills the window.");
+    id3.className = "ident"; av3.classList.remove("show");
+  }
+  function leave() {
+    w3.classList.remove("watch", "peek", "edgehint");
+    document.getElementById("b-toggle").innerHTML = "Watch <kbd>⏎</kbd>";
+    id3.className = "ident"; av3.classList.remove("show"); cur.classList.remove("show");
+    say("Browsing. Rail and now bar visible.");
+  }
+  document.getElementById("c3").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const act = b.dataset.act;
+    if (act === "toggle") { watching() ? leave() : enter(); return; }
+    if (!watching()) enter();
+    if (act === "mouse") {
+      w3.classList.remove("peek");
+      cur.style.left = "62%"; cur.style.top = "48%"; cur.classList.add("show");
+      requestAnimationFrame(() => { cur.style.left = "56%"; cur.style.top = "56%"; });
+      id3.className = "ident fade show"; av3.classList.add("show");
+      say("Mouse moved: the card (ours, top) and AVKit's controls (bottom) fade in together.");
+      hideChrome();
+    }
+    if (act === "zap") {
+      setChannel((sel + 1) % 8);
+      showCard(false);
+      key.classList.add("show"); clearTimeout(keyT); keyT = setTimeout(() => key.classList.remove("show"), 500);
+      say(`↓ pressed: ${String(sel + 1).padStart(3, "0")} ${CH[sel][0]}. The card is there at once, no slide.`);
+      hideChrome();
+    }
+    if (act === "edge") {
+      cur.style.left = "8%"; cur.style.top = "45%"; cur.classList.add("show");
+      requestAnimationFrame(() => { cur.style.left = "0.4%"; });
+      w3.classList.add("edgehint");
+      clearTimeout(peekT); peekT = setTimeout(() => { w3.classList.remove("edgehint"); w3.classList.add("peek"); say("Left edge: the list slides in over the picture. The picture doesn't move."); }, 300);
+      id3.className = "ident fade"; av3.classList.remove("show");
+      clearTimeout(hideT);
+    }
+    if (act === "pick") {
+      if (!w3.classList.contains("peek")) { say("Point at the left edge first to bring the list back."); return; }
+      setChannel((sel + 3) % 8);
+      cur.style.left = "14%"; cur.style.top = (34 + (sel % 8) * 7) + "%";
+      setTimeout(() => {
+        w3.classList.remove("peek");
+        showCard(false);
+        say(`Picked ${CH[sel][0]}: the list leaves the way it came, and the card names the channel.`);
+        hideChrome();
+      }, 380);
+    }
+  });
+
+  // ---- 04: list densities ----
+  document.querySelector('[data-list="full"]').insertAdjacentHTML("beforeend", rowsHTML(12, 2));
+  document.querySelector('[data-list="compact"]').insertAdjacentHTML("beforeend", rowsHTML(12, 2, { compact: true }));
+  document.querySelector('[data-list="icons"]').insertAdjacentHTML("beforeend", rowsHTML(12, 2, { icons: true }));
+})();
+</script>

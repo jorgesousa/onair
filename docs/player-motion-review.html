@@ -1,0 +1,482 @@
+<title>ONAIR Player Motion</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one column of proposals; each pairs a live mockup (the Test Card monitor) with its recipe. Single dark look, like a broadcast monitor. */
+:root {
+  color-scheme: dark;
+  --ink: #0E0E10;
+  --raised: #18181B;
+  --panel: #131316;
+  --line: rgba(242, 240, 234, 0.09);
+  --paper: #F2F0EA;
+  --dim: rgba(242, 240, 234, 0.58);
+  --faint: rgba(242, 240, 234, 0.52);
+  --live: #E8332A;
+  --b1: #F2F0EA; --b2: #F5D90A; --b3: #25D6E5; --b4: #2BD44E; --b5: #E83CC8; --b6: #E8332A; --b7: #2A3BE8;
+  --display: "Archivo Black", "Arial Black", Impact, sans-serif;
+  --text: "Inter", -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+}
+html { background: var(--ink); }
+body { background: var(--ink); color: var(--paper); font: 15px/1.6 var(--text); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 48px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+.bars { display: flex; }
+.bars i { flex: 1; }
+.bars i:nth-child(1) { background: var(--b1); } .bars i:nth-child(2) { background: var(--b2); }
+.bars i:nth-child(3) { background: var(--b3); } .bars i:nth-child(4) { background: var(--b4); }
+.bars i:nth-child(5) { background: var(--b5); } .bars i:nth-child(6) { background: var(--b6); }
+.bars i:nth-child(7) { background: var(--b7); }
+
+/* Header */
+header.top { display: grid; gap: 22px; padding-bottom: 40px; border-bottom: 1px solid var(--line); }
+.mark { display: flex; align-items: center; gap: 10px; font: 15px var(--display); letter-spacing: 0.02em; }
+.mark .bars { width: 22px; height: 15px; border-radius: 3px; overflow: hidden; }
+h1 { font: clamp(34px, 6vw, 60px)/1 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.lede { color: var(--dim); max-width: 64ch; margin: 0; font-size: 17px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { font: 600 11px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--dim); }
+
+/* Proposals */
+.proposal { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 36px; padding-block: 56px; border-bottom: 1px solid var(--line); align-items: start; }
+@media (max-width: 860px) { .proposal { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+.rank { font: 700 12px var(--mono); color: var(--faint); letter-spacing: 0.08em; }
+.proposal h2 { font: 26px/1.1 var(--display); margin: 6px 0 12px; text-wrap: balance; }
+.proposal p { margin: 0 0 14px; color: var(--dim); max-width: 60ch; }
+.proposal p strong { color: var(--paper); font-weight: 600; }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 18px 0; font-size: 13px; }
+.facts dt { font: 700 11px/1.8 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.facts dd { margin: 0; color: var(--paper); }
+pre.recipe { margin: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; font: 12px/1.65 var(--mono); color: var(--dim); overflow-x: auto; white-space: pre; }
+pre.recipe b { color: var(--paper); font-weight: 700; }
+
+/* Monitor mockups */
+.demo { display: grid; gap: 12px; min-width: 0; }
+.screen { position: relative; aspect-ratio: 16 / 9; max-width: 100%; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.pic { position: absolute; inset: 0; transition: opacity 280ms var(--ease-out); }
+.pic::before, .pic::after { content: ""; position: absolute; border-radius: 50%; filter: blur(28px); animation: drift 9s ease-in-out infinite alternate; }
+.pic::before { width: 55%; height: 75%; left: 8%; top: 12%; background: var(--c1, #3a5cff); }
+.pic::after { width: 45%; height: 60%; right: 6%; bottom: 4%; background: var(--c2, #ffb347); animation-duration: 11s; }
+@keyframes drift { to { transform: translate(6%, -5%) scale(1.08); } }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: 600 12px/1 var(--text); color: var(--paper); background: var(--raised); border: 1px solid var(--line); border-radius: 99px; padding: 9px 14px; cursor: pointer; transition: transform 140ms var(--ease-out), background 140ms; }
+button:hover { background: #222227; }
+button:active { transform: scale(0.96); }
+button:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+button.on { background: var(--paper); color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 99px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 7px 12px; }
+.seg button.on { background: var(--paper); color: var(--ink); }
+.hint { font: 500 11px var(--mono); color: var(--faint); }
+kbd { font: 700 11px var(--mono); border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; color: var(--dim); }
+
+/* 1 · zap ident */
+.ident { position: absolute; left: 5%; top: 7%; background: var(--paper); color: var(--ink); border-radius: 7px; overflow: hidden; box-shadow: 0 14px 40px rgba(0,0,0,0.45); opacity: 0; transform: translateY(-14px); transition: opacity 200ms ease-out, transform 200ms ease-out; pointer-events: none; }
+.ident.show { opacity: 1; transform: none; transition: opacity 320ms var(--ease-out), transform 420ms var(--ease-out); }
+.ident .bars { height: 5px; }
+.ident .row { display: flex; align-items: baseline; gap: 14px; padding: 12px 18px 14px; }
+.ident .num { font: 700 clamp(22px, 4vw, 34px)/1 var(--mono); font-variant-numeric: tabular-nums; }
+.ident .name { font: clamp(14px, 2.4vw, 20px)/1.1 var(--display); text-transform: uppercase; }
+.ident .meta { display: flex; gap: 6px; align-items: center; font: 600 10px var(--mono); letter-spacing: 0.08em; color: rgba(14,14,16,0.6); margin-top: 4px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }
+.black { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity 120ms; }
+.black.on { opacity: 1; }
+
+/* 2 · picture on */
+.card { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr auto auto; transform-origin: 50% 50%; }
+.card .bars { height: 100%; }
+.card .strip { height: 9%; display: flex; }
+.card .strip i { flex: 1; }
+.card .base { height: 20%; background: var(--ink); }
+.card .box { position: absolute; left: 50%; top: 42%; translate: -50% -50%; background: var(--paper); color: var(--ink); padding: 10px 22px 12px; border-radius: 4px; text-align: center; }
+.card .box small { display: block; font: 9px var(--display); letter-spacing: 0.24em; opacity: 0.6; }
+.card .box span { font: clamp(16px, 3vw, 26px)/1.2 var(--display); }
+.card.fade-out { opacity: 0; transition: opacity 350ms ease-out; }
+.card.collapse { animation: collapse 260ms var(--ease-in) forwards; }
+@keyframes collapse { 0% { transform: scaleY(1); filter: brightness(1); } 70% { transform: scaleY(0.012); filter: brightness(1.8); opacity: 1; } 100% { transform: scaleY(0.012) scaleX(0.3); opacity: 0; } }
+.pic.hidden { opacity: 0; transition: none; }
+.pic.reveal { opacity: 1; transition: opacity 300ms var(--ease-out) 120ms; }
+
+/* 3 · TV handoff */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 14px; align-items: end; }
+.mac { background: var(--raised); border: 1px solid var(--line); border-radius: 9px; padding: 18px 8px 8px; position: relative; }
+.mac::before { content: ""; position: absolute; top: 6px; left: 8px; width: 22px; height: 6px; background: radial-gradient(circle, #E8332A 2.4px, transparent 3px) 0 0/8px 6px repeat-x; opacity: 0.8; }
+.mac .stage { position: relative; aspect-ratio: 16/10; background: #000; border-radius: 5px; overflow: hidden; }
+.mac .pic { transition: opacity 300ms var(--ease-in), transform 300ms var(--ease-in); }
+.mac .pic.away { opacity: 0; transform: scale(0.92) translateX(8%); }
+.ontv { position: absolute; inset: 0; display: grid; place-content: center; gap: 4px; text-align: center; background: var(--ink); opacity: 0; transform: translateY(10px); transition: opacity 250ms ease-out, transform 250ms ease-out; }
+.ontv.show { opacity: 1; transform: none; transition: opacity 420ms var(--ease-out) 160ms, transform 520ms var(--ease-out) 160ms; }
+.ontv b { font: clamp(12px, 2vw, 16px) var(--display); }
+.ontv small { font: 600 9px var(--mono); color: var(--faint); letter-spacing: 0.06em; }
+.tv { position: relative; }
+.tv .panel { position: relative; aspect-ratio: 16/9; background: #050506; border: 6px solid #1b1b1f; border-radius: 6px; overflow: hidden; }
+.tv .foot { width: 26%; height: 8px; margin: 0 auto; background: #1b1b1f; border-radius: 0 0 4px 4px; }
+.tv .power { position: absolute; inset: 0; transform: scaleY(0.006); opacity: 0; }
+.tv .power.on { opacity: 1; transform: scaleY(1); transition: opacity 80ms, transform 460ms var(--ease-out); }
+.tv .power.off { opacity: 0; transform: scaleY(0.006); transition: transform 220ms var(--ease-in), opacity 120ms 200ms; }
+.tv .power .ident { left: 4%; top: 6%; }
+.tv .power .ident .row { padding: 7px 11px 8px; gap: 9px; }
+.tv .power .ident .num { font-size: 18px; } .tv .power .ident .name { font-size: 12px; }
+.label { font: 700 11px var(--mono); letter-spacing: 0.1em; color: var(--faint); text-transform: uppercase; margin-top: 6px; text-align: center; }
+
+/* 4 · now bar */
+.nowbar { background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 18px 22px; display: grid; gap: 10px; }
+.nb-top { display: flex; align-items: center; gap: 12px; }
+.livepill { display: inline-flex; gap: 6px; align-items: center; background: var(--live); color: #fff; border-radius: 99px; padding: 4px 10px; font: 9px var(--display); letter-spacing: 0.14em; }
+.livepill::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #fff; }
+.chan { font: 11px var(--display); letter-spacing: 0.1em; color: var(--dim); }
+.ticker { position: relative; height: 34px; overflow: hidden; }
+.ticker span { position: absolute; left: 0; top: 0; font: clamp(18px, 3vw, 26px)/34px var(--display); white-space: nowrap; transition: transform 260ms var(--ease-out), opacity 260ms var(--ease-out); }
+.ticker span.out { transform: translateY(-100%); opacity: 0; }
+.ticker span.in { transform: translateY(100%); opacity: 0; transition: none; }
+.nb-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.prog { position: relative; height: 4px; width: min(320px, 100%); background: var(--line); border-radius: 99px; overflow: hidden; }
+.prog .bars { position: absolute; inset: 0 auto 0 0; width: 70%; transition: width 500ms var(--ease-out); }
+.span { font: 500 12px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.next { font: 500 12px var(--mono); color: var(--faint); }
+.next b { color: var(--dim); font-weight: 700; }
+.next.flash { animation: flash 600ms ease-out; }
+@keyframes flash { from { color: var(--paper); } }
+
+/* 5 · first load */
+.rail { background: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: grid; gap: 2px; max-height: 360px; overflow: hidden; }
+.rrow { display: grid; grid-template-columns: 34px minmax(0, 1fr) 40px; gap: 12px; align-items: center; padding: 8px 10px; border-radius: 10px; }
+.rrow.air { background: var(--paper); color: var(--ink); }
+.rrow .n { font: 600 11px var(--mono); color: var(--faint); }
+.rrow.air .n { color: rgba(14,14,16,0.6); }
+.rrow .t { font: 12px var(--display); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rrow .s { font-size: 11.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rrow.air .s { color: rgba(14,14,16,0.62); }
+.rrow .logo { height: 12px; border-radius: 3px; background: var(--line); }
+.rrow.air .logo { background: rgba(14,14,16,0.2); }
+.rail.stagger .rrow { animation: rise 300ms var(--ease-out) both; animation-delay: calc(var(--i) * 30ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* Rejected + beyond */
+section.block { padding-block: 56px 8px; }
+section.block h2 { font: 26px/1.1 var(--display); margin: 0 0 8px; }
+section.block > p { color: var(--dim); margin: 0 0 22px; max-width: 64ch; }
+.rej { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.rej div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+@media (max-width: 700px) { .rej div { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.rej b { font-weight: 600; }
+.rej span { color: var(--dim); }
+.rej em { font-style: normal; font: 700 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--live); margin-right: 8px; }
+.beyond { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .beyond { grid-template-columns: minmax(0, 1fr); } }
+.beyond article { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.beyond h3 { font: 15px/1.2 var(--display); margin: 0 0 8px; }
+.beyond p { margin: 0; color: var(--dim); font-size: 14px; }
+.verdict { margin-top: 56px; padding: 26px 28px; border-radius: 14px; background: var(--paper); color: var(--ink); display: grid; gap: 10px; }
+.verdict h2 { font: 22px var(--display); margin: 0; }
+.verdict p { margin: 0; max-width: 70ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+  .ident, .ident.show, .ontv, .ontv.show, .ticker span { transform: none !important; }
+  .pic::before, .pic::after { animation: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="mark"><span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>ONAIR</div>
+    <h1>Player motion review</h1>
+    <p class="lede">Five places where the player should move, each with a live mockup and the SwiftUI recipe, ordered by impact. Then the places that should stay still, including one animation to remove, and three ideas that aren't motion.</p>
+    <div class="legend">
+      <span class="chip">Live mockups · press the buttons</span>
+      <span class="chip">Recipes reuse Motion.snap / enter / fade / quick</span>
+      <span class="chip">Every one degrades under Reduce Motion</span>
+    </div>
+  </header>
+
+  <!-- 1 -->
+  <section class="proposal" id="ident">
+    <div class="demo">
+      <div class="screen" id="s1">
+        <div class="pic" id="s1pic"></div>
+        <div class="black" id="s1black"></div>
+        <div class="ident" id="s1ident"><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="row"><span class="num" id="s1num">001</span><div><div class="name" id="s1name">RTP 1</div><div class="meta"><span class="dot"></span><span id="s1prog">LIVE · TELEJORNAL</span></div></div></div></div>
+      </div>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Version"><button id="s1today">Today</button><button id="s1new" class="on">Proposed</button></div>
+        <button id="s1up" aria-label="Previous channel">↑ Prev</button><button id="s1down" aria-label="Next channel">↓ Next</button>
+        <span class="hint">full screen · zap a few times fast</span>
+      </div>
+    </div>
+    <div>
+      <div class="rank">01 · HIGHEST LEVERAGE</div>
+      <h2>A station ident when you zap in full screen</h2>
+      <p>In full screen the rail and the now bar are gone, so <strong>↑↓ changes channel with no sign of where you landed</strong>. A small card top left shows the number, name and what's on, then leaves after 2.5 s. Zapping fast keeps the card up and only the number ticks.</p>
+      <p>It's the same card the TV window already uses, so the Mac and the TV say the same thing.</p>
+      <dl class="facts"><dt>Purpose</dt><dd>State indication</dd><dt>Frequency</dt><dd>Tens a day, keyboard-led, so the card itself never delays the zap</dd><dt>Where</dt><dd><code>ContentView.swift</code> stage, full screen only · <code>TVScreen.swift</code> TVChannelOSD</dd></dl>
+<pre class="recipe"><b>// show only when the rail is hidden</b>
+if isFullScreen, let c = osd {
+  TVChannelOSD(channel: c, number: n)
+    .transition(.asymmetric(
+      insertion: .move(edge: .top).combined(with: .opacity),
+      removal: .opacity))
+}
+<b>// in: Motion.enter · out: .easeOut(duration: 0.2)</b>
+<b>// hold 2.5 s, restart the timer on every zap</b>
+<b>// number: .contentTransition(.numericText())</b>
+<b>// Reduce Motion: opacity only</b></pre>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="proposal" id="picture-on">
+    <div class="demo">
+      <div class="screen" id="s2">
+        <div class="pic hidden" id="s2pic" style="--c1:#e04f3a;--c2:#2bd4c0"></div>
+        <div class="card" id="s2card">
+          <div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="strip"><i style="background:var(--b7)"></i><i style="background:var(--ink)"></i><i style="background:var(--b5)"></i><i style="background:var(--ink)"></i><i style="background:var(--b3)"></i><i style="background:var(--ink)"></i><i style="background:var(--b1)"></i></div>
+          <div class="base"></div>
+          <div class="box"><small>TUNING IN</small><span>SIC NOTÍCIAS</span></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="s2a">Replay today</button><button id="s2b" class="on">Replay proposed</button>
+        <span class="hint">the moment the first frame arrives</span>
+      </div>
+    </div>
+    <div>
+      <div class="rank">02</div>
+      <h2>The test card switches off into the picture</h2>
+      <p>Today the test card fades out over the picture, so for a third of a second you see both at once. Instead, <strong>the card collapses to a bright line, like an old set, and the picture comes up behind it</strong>. It says "signal acquired" in the brand's own language, in 260 ms.</p>
+      <dl class="facts"><dt>Purpose</dt><dd>Preventing a jarring change</dd><dt>Frequency</dt><dd>Every channel change, so it stays under 300 ms and never waits on itself</dd><dt>Where</dt><dd><code>ContentView.swift</code> stage · <code>Motion.swift</code> TuningView</dd></dl>
+<pre class="recipe">TuningView(channel: c)
+  .transition(.asymmetric(
+    insertion: .opacity,
+    removal: .modifier(
+      active: CRTOff(amount: 1),   <b>// scaleY 0.012, brightness +0.8</b>
+      identity: CRTOff(amount: 0))))
+<b>// removal: .timingCurve(0.55, 0, 1, 0.45, duration: 0.26)</b>
+PlayerView(...)
+  .opacity(playback.isTuning ? 0 : 1)
+  .animation(Motion.fade.delay(0.12), value: playback.isTuning)
+<b>// Reduce Motion: today's crossfade</b></pre>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="proposal" id="handoff">
+    <div class="demo">
+      <div class="duo">
+        <div>
+          <div class="mac"><div class="stage"><div class="pic" id="s3mac" style="--c1:#7a4bff;--c2:#ffcf3a"></div>
+            <div class="ontv" id="s3ontv"><b>ON YOUR TV</b><small>Samsung Q80 · change channel here</small></div></div></div>
+          <div class="label">This Mac</div>
+        </div>
+        <div class="tv">
+          <div class="panel"><div class="power" id="s3power"><div class="pic" style="--c1:#7a4bff;--c2:#ffcf3a"></div>
+            <div class="ident show"><div class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="row"><span class="num">007</span><div><div class="name">SIC</div></div></div></div></div></div>
+          <div class="foot"></div>
+          <div class="label">Samsung · separate display</div>
+        </div>
+      </div>
+      <div class="controls"><button id="s3btn" class="on">Show on TV</button><span class="hint">and back again</span></div>
+    </div>
+    <div>
+      <div class="rank">03</div>
+      <h2>The picture visibly moves to the TV</h2>
+      <p>With SHOW ON TV, today the Mac's picture is just replaced by a card. Make the move readable: <strong>the Mac picture shrinks and slides toward the TV, the TV switches on from a line, and the station ident lands on it</strong>. BACK TO MAC plays it in reverse.</p>
+      <dl class="facts"><dt>Purpose</dt><dd>Spatial consistency</dd><dt>Frequency</dt><dd>Occasional, a few times an evening, so it can take half a second</dd><dt>Where</dt><dd><code>ContentView.swift</code> stage · <code>TVScreen.swift</code> TVScreenView</dd></dl>
+<pre class="recipe"><b>// Mac: picture leaves toward the TV</b>
+.transition(.scale(scale: 0.92)
+  .combined(with: .offset(x: 24))
+  .combined(with: .opacity))       <b>// .easeIn(duration: 0.3)</b>
+OnTVScreenView(...).rise(0.16)
+<b>// TV window: power on from a line</b>
+.scaleEffect(x: 1, y: on ? 1 : 0.006)
+.animation(.spring(duration: 0.46, bounce: 0), value: on)
+<b>// Reduce Motion: crossfade on both screens</b></pre>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="proposal" id="now-bar">
+    <div class="demo">
+      <div class="nowbar">
+        <div class="nb-top"><span class="livepill">LIVE</span><span class="chan">RTP 1 HD</span></div>
+        <div class="ticker" id="s4tick"><span>Estrelas ao Sábado</span></div>
+        <div class="nb-row"><div class="prog"><div class="bars" id="s4prog"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><span class="span" id="s4span">14:29–19:00</span></div>
+        <div class="next" id="s4next">NEXT <b>19:00</b> Portugal em Direto</div>
+      </div>
+      <div class="controls"><button id="s4btn" class="on">Advance to the next show</button><span class="hint">what happens when the guide rolls over</span></div>
+    </div>
+    <div>
+      <div class="rank">04</div>
+      <h2>The now bar rolls over to the next show</h2>
+      <p>When a programme ends, the title just swaps. <strong>Let it roll up like a departures board, reset the progress bar, and add a quiet "Next" line</strong>, so you know what's coming without opening a guide.</p>
+      <dl class="facts"><dt>Purpose</dt><dd>State indication</dd><dt>Frequency</dt><dd>Occasional, once per programme</dd><dt>Where</dt><dd><code>ContentView.swift</code> NowBar · <code>Store</code> next programme</dd></dl>
+<pre class="recipe">Text(now.title)
+  .id(now.title)
+  .transition(.push(from: .bottom))  <b>// .easeOut(duration: 0.26)</b>
+BarsProgress(value: progress)
+  .animation(Motion.enter, value: now.id)
+<b>// new line, Brand.mono(12), Brand.faint</b>
+Text("NEXT \(next.start) \(next.title)")
+<b>// Reduce Motion: .opacity instead of .push</b></pre>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="proposal" id="first-load">
+    <div class="demo">
+      <div class="rail" id="s5"></div>
+      <div class="controls"><button id="s5btn" class="on">Replay first load</button><span class="hint">only after adding or switching a playlist</span></div>
+    </div>
+    <div>
+      <div class="rank">05</div>
+      <h2>The first list arrives row by row</h2>
+      <p>After "Tuning in", 269 channels appear in one block. On the <strong>first load of a playlist only</strong>, let the visible rows rise in with a 30 ms stagger. It's the moment the app comes alive, it's rare, and the list can be clicked while it settles.</p>
+      <dl class="facts"><dt>Purpose</dt><dd>Delight, at the rare tier</dd><dt>Frequency</dt><dd>Rare. Never on filters, search or relaunch</dd><dt>Where</dt><dd><code>ContentView.swift</code> listArea · <code>Motion.swift</code> Rise</dd></dl>
+<pre class="recipe">ChannelRow(...)
+  .rise(firstLoad ? Double(min(i, 12)) * 0.03 : 0,
+        distance: 8)
+<b>// firstLoad: true when store.items goes from empty</b>
+<b>// to loaded, false after 0.6 s</b>
+<b>// rows past 12 appear at once; Rise already
+// skips motion under Reduce Motion</b></pre>
+    </div>
+  </section>
+
+  <section class="block" id="rejected">
+    <h2>What should stay still</h2>
+    <p>Considered and turned down. The first is an animation the player has today that should go.</p>
+    <div class="rej">
+      <div><b>The on-air highlight sliding on ↑↓</b><span><em>Remove</em>It's keyboard-led and repeated all evening, so the spring makes zapping feel a step behind. Keep the slide when you click a row, and jump instantly on the arrow keys.</span></div>
+      <div><b>Static noise or a CRT effect on every channel change</b><span><em>Frequency</em>Fun the first time, tiring by the tenth zap. Proposal 02 gives the brand moment in 260 ms instead.</span></div>
+      <div><b>Animating the list while you type a search</b><span><em>Frequency</em>Rows moving on every keystroke make the results harder to read.</span></div>
+      <div><b>Moving the guide progress bars in the rail</b><span><em>Function</em>They're data you scan, so they update in place once a minute.</span></div>
+      <div><b>Hover lift on channel rows</b><span><em>Frequency</em>The instant raised background is the right amount for something you pass over constantly.</span></div>
+    </div>
+  </section>
+
+  <section class="block" id="beyond">
+    <h2>Beyond motion</h2>
+    <p>Not animation, but they'd make zapping feel like a real TV.</p>
+    <div class="beyond">
+      <article><h3>Type a number to zap</h3><p>Typing 0, 1, 5 jumps to channel 015, like a remote. The ident from 01 shows the digits as you type them.</p></article>
+      <article><h3>Back to the last channel</h3><p>One key, for example <kbd>⌫</kbd>, flips between the two most recent channels, the button every remote has.</p></article>
+      <article><h3>What's next, everywhere</h3><p>The "Next" line from 04 also on hover in the rail, so you can see what's coming without leaving what you're watching.</p></article>
+    </div>
+  </section>
+
+  <div class="verdict">
+    <h2>Verdict</h2>
+    <p>The player is already close to right. Motion is centralised in four tokens, every custom button presses, and Reduce Motion is respected. It needs a little more motion, not much. The biggest win is 01, the full-screen ident, because it fixes a real problem: zapping with no feedback. 02 and 03 bring the Test Card brand into the moments that matter, and removing the slide on ↑↓ makes zapping faster.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (id) => document.getElementById(id);
+  const channels = [
+    ["RTP 1", "TELEJORNAL", "#3a5cff", "#ffb347"],
+    ["RTP 1 HD", "TELEJORNAL", "#3a5cff", "#ffb347"],
+    ["RTP 2", "VOLEIBOL FEMININO", "#2bd44e", "#2a3be8"],
+    ["SIC", "JORNAL DA NOITE", "#e8332a", "#f5d90a"],
+    ["SIC NOTÍCIAS", "EDIÇÃO DA NOITE", "#e04f3a", "#2bd4c0"],
+    ["TVI", "JORNAL NACIONAL", "#e83cc8", "#25d6e5"],
+    ["CNN PORTUGAL", "CNN SUMMIT", "#c0c0c8", "#e8332a"],
+    ["RTP MEMÓRIA", "A MÃE É QUE SABE", "#ffcf3a", "#7a4bff"],
+  ];
+
+  // 1 · zap ident
+  let idx = 0, proposed = true, hideT, tuneT;
+  const paint = () => {
+    const c = channels[idx];
+    $("s1pic").style.setProperty("--c1", c[2]); $("s1pic").style.setProperty("--c2", c[3]);
+  };
+  paint();
+  const zap = (d) => {
+    idx = (idx + d + channels.length) % channels.length;
+    const c = channels[idx];
+    $("s1black").classList.add("on");
+    clearTimeout(tuneT);
+    tuneT = setTimeout(() => { paint(); $("s1black").classList.remove("on"); }, 380);
+    if (!proposed) return;
+    $("s1num").textContent = String(idx + 1).padStart(3, "0");
+    $("s1name").textContent = c[0]; $("s1prog").textContent = "LIVE · " + c[1];
+    $("s1ident").classList.add("show");
+    clearTimeout(hideT);
+    hideT = setTimeout(() => $("s1ident").classList.remove("show"), 2500);
+  };
+  $("s1up").onclick = () => zap(-1);
+  $("s1down").onclick = () => zap(1);
+  const setMode = (p) => {
+    proposed = p; $("s1new").classList.toggle("on", p); $("s1today").classList.toggle("on", !p);
+    if (!p) $("s1ident").classList.remove("show");
+  };
+  $("s1today").onclick = () => setMode(false);
+  $("s1new").onclick = () => setMode(true);
+  $("s1").tabIndex = 0;
+  $("s1").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); zap(1); }
+    if (e.key === "ArrowUp") { e.preventDefault(); zap(-1); }
+  });
+
+  // 2 · picture on
+  let s2T = [];
+  const s2 = (mode) => {
+    s2T.forEach(clearTimeout); s2T = [];
+    const card = $("s2card"), pic = $("s2pic");
+    card.className = "card"; pic.className = "pic hidden";
+    $("s2a").classList.toggle("on", mode === "today"); $("s2b").classList.toggle("on", mode === "new");
+    s2T.push(setTimeout(() => {
+      if (mode === "today" || reduce) { pic.className = "pic"; pic.style.transition = "opacity 350ms ease-out"; card.classList.add("fade-out"); }
+      else { card.classList.add("collapse"); pic.style.transition = ""; pic.className = "pic reveal"; }
+    }, 1400));
+  };
+  $("s2a").onclick = () => s2("today");
+  $("s2b").onclick = () => s2("new");
+
+  // 3 · TV handoff
+  let onTV = false;
+  $("s3btn").onclick = () => {
+    onTV = !onTV;
+    $("s3mac").classList.toggle("away", onTV);
+    $("s3ontv").classList.toggle("show", onTV);
+    const p = $("s3power");
+    p.classList.remove("on", "off");
+    void p.offsetWidth;
+    p.classList.add(onTV ? "on" : "off");
+    $("s3btn").textContent = onTV ? "Back to Mac" : "Show on TV";
+  };
+
+  // 4 · now bar
+  const shows = [["Estrelas ao Sábado", "14:29–19:00", "19:00", "Portugal em Direto"], ["Portugal em Direto", "19:00–20:00", "20:00", "Telejornal"], ["Telejornal", "20:00–21:00", "21:00", "A Mãe é Que Sabe"], ["A Mãe é Que Sabe", "21:00–22:30", "22:30", "Estrelas ao Sábado"]];
+  let si = 0;
+  $("s4btn").onclick = () => {
+    si = (si + 1) % shows.length;
+    const s = shows[si], tick = $("s4tick");
+    const old = tick.querySelector("span:last-child");
+    const nu = document.createElement("span"); nu.textContent = s[0]; nu.className = "in";
+    tick.appendChild(nu);
+    void nu.offsetWidth;
+    old.classList.add("out"); nu.className = "";
+    setTimeout(() => old.remove(), 300);
+    const prog = $("s4prog");
+    prog.style.transition = "none"; prog.style.width = "0%"; void prog.offsetWidth;
+    prog.style.transition = ""; prog.style.width = "6%";
+    $("s4span").textContent = s[1];
+    const n = $("s4next"); n.innerHTML = "NEXT <b>" + s[2] + "</b> " + s[3];
+    n.classList.remove("flash"); void n.offsetWidth; n.classList.add("flash");
+  };
+
+  // 5 · first load
+  const rail = $("s5");
+  rail.innerHTML = channels.map((c, i) =>
+    `<div class="rrow${i === 3 ? " air" : ""}" style="--i:${i}"><span class="n">${String(i + 1).padStart(3, "0")}</span><div style="min-width:0"><div class="t">${c[0]}</div><div class="s">${c[1].charAt(0) + c[1].slice(1).toLowerCase()}</div></div><div class="logo"></div></div>`).join("");
+  $("s5btn").onclick = () => { rail.classList.remove("stagger"); void rail.offsetWidth; rail.classList.add("stagger"); };
+})();
+</script>

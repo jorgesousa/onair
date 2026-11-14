@@ -24,22 +24,93 @@ struct PressStyle: ButtonStyle {
 struct Rise: ViewModifier {
     var delay: Double = 0
     var distance: CGFloat = 14
+    var active = true
+    var animation: Animation? = nil
     @State private var shown = false
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     func body(content: Content) -> some View {
         content
-            .opacity(shown || reduce ? 1 : 0)
-            .offset(y: shown || reduce ? 0 : distance)
+            .opacity(shown || reduce || !active ? 1 : 0)
+            .offset(y: shown || reduce || !active ? 0 : distance)
             .onAppear {
-                guard !reduce else { return }
-                withAnimation(Motion.enter.delay(delay)) { shown = true }
+                guard !reduce, active else { return }
+                withAnimation((animation ?? Motion.enter).delay(delay)) { shown = true }
             }
     }
 }
 
 extension View {
-    func rise(_ delay: Double = 0, distance: CGFloat = 14) -> some View { modifier(Rise(delay: delay, distance: distance)) }
+    func rise(_ delay: Double = 0, distance: CGFloat = 14, active: Bool = true, animation: Animation? = nil) -> some View {
+        modifier(Rise(delay: delay, distance: distance, active: active, animation: animation))
+    }
+}
+
+/// The test card switching off like an old set: it folds to a bright line, then goes.
+struct CRTOff: ViewModifier, Animatable {
+    var amount: Double   // 0 = card, 1 = gone
+    var animatableData: Double {
+        get { amount }
+        set { amount = newValue }
+    }
+    func body(content: Content) -> some View {
+        let fold = min(1, amount / 0.7)               // first 70%: fold to a line
+        content
+            .scaleEffect(x: 1 - 0.7 * max(0, amount - 0.7) / 0.3, y: 1 - 0.988 * fold)
+            .brightness(0.8 * fold)
+            .opacity(amount < 0.7 ? 1 : 1 - (amount - 0.7) / 0.3)
+    }
+}
+
+/// The test card over the stage while tuning. When the picture arrives it folds into a bright line and
+/// goes (a fade under Reduce Motion). It stays in the view tree while it folds: SwiftUI draws a view that
+/// is being removed underneath AppKit's picture view, so a removal transition would fold out of sight.
+struct TuningOverlay: View {
+    let channel: Channel
+    let tuning: Bool
+    @State private var shown = false
+    @State private var fold = 0.0
+    @State private var fade = 0.0
+    @State private var task: Task<Void, Never>?
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    var body: some View {
+        ZStack {
+            if shown {
+                TuningView(channel: channel).id(channel.id)
+                    .modifier(CRTOff(amount: fold))
+                    .opacity(1 - fade)
+            }
+        }
+        .allowsHitTesting(false)
+        .onAppear { if tuning { begin() } }
+        .onChange(of: tuning) { _, t in t ? begin() : end() }
+    }
+
+    /// Fades in (proposal 02: opacity insertion), in the same 0.35 s as the picture fades out under it.
+    private func begin() {
+        task?.cancel()
+        var t = Transaction(); t.disablesAnimations = true
+        let fresh = !shown || fade > 0 || fold > 0
+        withTransaction(t) { if fresh { fade = 1 }; fold = 0; shown = true }
+        withAnimation(Motion.fade) { fade = 0 }
+    }
+
+    private func end() {
+        guard shown else { return }
+        task?.cancel()
+        if reduce {
+            withAnimation(.easeOut(duration: 0.2)) { fade = 1 }
+        } else {
+            withAnimation(.timingCurve(0.55, 0, 1, 0.45, duration: 0.26)) { fold = 1 }
+        }
+        task = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard !Task.isCancelled else { return }
+            var t = Transaction(); t.disablesAnimations = true
+            withTransaction(t) { shown = false; fold = 0; fade = 0 }
+        }
+    }
 }
 
 /// Shown between picking a channel and the first frame, and while a stream stalls:

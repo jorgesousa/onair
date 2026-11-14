@@ -11,6 +11,8 @@ final class TVScreen {
     /// Displays other than the one ONAIR's main window is on.
     private(set) var screens: [NSScreen] = []
     private(set) var showing: NSScreen?
+    /// False while the TV picture folds away, just before the window closes.
+    private(set) var powered = true
     private var window: NSWindow?
 
     var available: Bool { !screens.isEmpty }
@@ -44,12 +46,25 @@ final class TVScreen {
         w.orderFrontRegardless()
         window = w
         showing = screen
+        powered = true
     }
 
-    func hide() {
+    /// `animated`: the TV picture folds to a line first, like a set switching off.
+    func hide(animated: Bool = false) {
+        guard animated, let w = window else { close(); return }
+        showing = nil          // the Mac takes the picture back at once
+        powered = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(240))
+            if window === w { close() }
+        }
+    }
+
+    private func close() {
         window?.orderOut(nil)
         window = nil
         showing = nil
+        powered = true
     }
 }
 
@@ -70,81 +85,113 @@ struct VideoLayer: NSViewRepresentable {
     }
 }
 
-/// What the TV shows: the picture, and on every channel change the tuner card in the brand.
+/// What the TV shows: the picture, and on every channel change the channel card in the brand.
 struct TVScreenView: View {
     let playback: PlaybackController
+    let tv: TVScreen
     let number: (Channel) -> Int?
+    let programme: (Channel) -> Programme?
     @State private var osd: Channel?
+    @State private var osdShown = false
     @State private var osdTask: Task<Void, Never>?
+    @State private var on = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
         ZStack {
             Color.black
             VideoLayer(player: playback.player)
                 .opacity(playback.isTuning ? 0 : 1)
-                .animation(Motion.fade, value: playback.isTuning)
-            if let c = playback.current, playback.isTuning {
-                TuningView(channel: c).id(c.id).transition(.opacity)
+                .animation(reduce ? Motion.fade : Motion.fade.delay(0.12), value: playback.isTuning)
+            if let c = playback.current {
+                TuningOverlay(channel: c, tuning: playback.isTuning)
             }
             if let c = osd {
-                TVChannelOSD(channel: c, number: number(c))
-                    .id(c.id)
-                    .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
+                ChannelCard(channel: c, number: number(c), now: programme(c), clock: .now)
+                    .padding(64)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    // A channel change is a remote-control action, many times an evening: in at once, out in a
+                    // fade. It stays in the view tree and fades by opacity: a removal would be drawn under the picture.
+                    .opacity(osdShown ? 1 : 0)
             }
         }
-        .animation(Motion.enter, value: osd?.id)
+        .animation(Motion.if(reduce, Motion.fade), value: playback.isTuning)
+        // Power on from a line, and off into one.
+        .scaleEffect(x: 1, y: reduce || (on && tv.powered) ? 1 : 0.006)
+        .opacity(reduce && !(on && tv.powered) ? 0 : 1)
+        .animation(tv.powered ? .spring(duration: 0.46, bounce: 0) : .timingCurve(0.55, 0, 1, 0.45, duration: 0.22), value: on && tv.powered)
+        .background(Color.black)
         .onChange(of: playback.current?.id) { _, _ in showOSD() }
-        .onAppear { showOSD() }
-        .onAppear { NSCursor.setHiddenUntilMouseMoves(true) }
+        .onAppear { on = true; showOSD(); NSCursor.setHiddenUntilMouseMoves(true) }
     }
 
     private func showOSD() {
         guard let c = playback.current else { return }
         osdTask?.cancel()
-        osd = c
+        var t = Transaction(); t.disablesAnimations = true
+        withTransaction(t) { osd = c; osdShown = true }
         osdTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
-            osd = nil
+            withAnimation(Motion.if(reduce, .easeOut(duration: 0.2))) { osdShown = false }
         }
     }
 }
 
-/// The channel card on the TV: bars, tuner number, name, what's on. Top left, like a station ident.
-struct TVChannelOSD: View {
+/// The channel card: bars, tuner number, name, what's on. Top left, like a station ident.
+/// Full size on the TV; `scale` shrinks it for the Mac's Watch mode.
+struct ChannelCard: View {
     let channel: Channel
     let number: Int?
+    /// Digits being typed to change channel: shown in place of the number.
+    var typed: String? = nil
+    var now: Programme? = nil
+    var clock: Date = .now
+    var scale: CGFloat = 1
     var body: some View {
-        VStack {
-            HStack(alignment: .top, spacing: 0) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Bars().frame(height: 14)
-                    HStack(alignment: .firstTextBaseline, spacing: 22) {
-                        Text(number.map { String(format: "%03d", $0) } ?? "···")
-                            .font(.system(size: 72, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(Brand.ink)
-                            .contentTransition(.numericText())
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(channel.displayName.uppercased())
-                                .font(Brand.display(40)).foregroundStyle(Brand.ink)
-                                .lineLimit(1).minimumScaleFactor(0.5)
-                            HStack(spacing: 8) {
-                                Circle().fill(Brand.live).frame(width: 10, height: 10)
-                                Text("LIVE").font(Brand.display(14)).tracking(2).foregroundStyle(Brand.ink.opacity(0.6))
-                            }
+        VStack(alignment: .leading, spacing: 0) {
+            Bars().frame(height: 14 * scale)
+            VStack(alignment: .leading, spacing: 16 * scale) {
+                HStack(alignment: .center, spacing: 22 * scale) {
+                    Text(typed.map { $0.padding(toLength: 3, withPad: "–", startingAt: 0) }
+                         ?? number.map { String(format: "%03d", $0) } ?? "···")
+                        .font(.system(size: 72 * scale, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(Brand.ink)
+                        // Zapping fast keeps the card up and only the number ticks.
+                        .contentTransition(.numericText())
+                        .transaction(value: number) { t in
+                            t.disablesAnimations = false
+                            t.animation = .easeOut(duration: 0.2)
+                        }
+                    VStack(alignment: .leading, spacing: 6 * scale) {
+                        Text(channel.displayName.uppercased())
+                            .font(Brand.display(40 * scale)).foregroundStyle(Brand.ink)
+                            .lineLimit(1).minimumScaleFactor(0.5)
+                        HStack(spacing: 8 * scale) {
+                            Circle().fill(Brand.live).frame(width: 10 * scale, height: 10 * scale)
+                            Text(now.map { "LIVE · \($0.span)" } ?? "LIVE")
+                                .font(Brand.mono(14 * scale, .semibold)).foregroundStyle(Brand.ink.opacity(0.62))
                         }
                     }
-                    .padding(.horizontal, 34).padding(.vertical, 26)
                 }
-                .background(Brand.paper)
-                .clipShape(.rect(cornerRadius: 10, style: .continuous))
-                .shadow(color: .black.opacity(0.4), radius: 30, y: 10)
-                .frame(maxWidth: 820, alignment: .leading)
-                Spacer()
+                if let now {
+                    VStack(alignment: .leading, spacing: 10 * scale) {
+                        Text(now.title).font(.system(size: 22 * scale, weight: .semibold)).foregroundStyle(Brand.ink)
+                            .lineLimit(1)
+                        Capsule().fill(Brand.ink.opacity(0.12)).frame(height: 5 * scale)
+                            .overlay(alignment: .leading) {
+                                GeometryReader { g in Capsule().fill(Brand.ink).frame(width: g.size.width * now.progress(at: clock)) }
+                            }
+                    }
+                }
             }
-            Spacer()
+            .padding(.horizontal, 34 * scale).padding(.vertical, 26 * scale)
         }
-        .padding(64)
+        .frame(minWidth: 420 * scale, maxWidth: 820 * scale, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
+        .background(Brand.paper)
+        .clipShape(.rect(cornerRadius: 10 * scale, style: .continuous))
+        .shadow(color: .black.opacity(0.4), radius: 30 * scale, y: 10 * scale)
     }
 }
 
@@ -165,7 +212,27 @@ struct OnTVScreenView: View {
                 Bars().frame(width: 220, height: 6).clipShape(.capsule)
                 SecondaryButton(title: "Back to this Mac", action: stop).padding(.top, 8)
             }
+            .rise(0.16)
+        }
+    }
+}
+
+/// On the Mac while the picture plays in Picture in Picture: ours instead of AVKit's grey placeholder.
+struct InPictureInPictureView: View {
+    let channel: Channel
+    var body: some View {
+        ZStack {
+            Brand.ink
+            VStack(spacing: 18) {
+                Image(systemName: "pip").font(.system(size: 46, weight: .semibold)).foregroundStyle(Brand.paper)
+                Text("IN THE SMALL WINDOW").font(Brand.display(36)).foregroundStyle(Brand.paper)
+                Text("\(channel.displayName) is playing in Picture in Picture. Close the small window, or pick a channel, to bring the picture back here.")
+                    .font(.system(size: 14, weight: .medium)).foregroundStyle(Brand.dim)
+                    .multilineTextAlignment(.center).frame(maxWidth: 440)
+                Bars().frame(width: 220, height: 6).clipShape(.capsule)
+            }
             .rise()
         }
+        .allowsHitTesting(false)
     }
 }

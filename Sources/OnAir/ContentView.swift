@@ -37,15 +37,47 @@ struct ContentView: View {
     @Namespace private var motion
     @Environment(\.accessibilityReduceMotion) private var reduce
 
+    // Watch mode: full screen, the list and the now bar step aside.
+    @State private var watching = false
+    @State private var peek = false                 // the list back over the picture, from the left edge
+    @State private var peekTask: Task<Void, Never>?
+    @State private var chrome = false               // channel card / floating bar, woken by the mouse or a zap
+    @State private var chromeTask: Task<Void, Never>?
+    @State private var typed = ""                   // digits typed to zap by number
+    @State private var typedTask: Task<Void, Never>?
+    @State private var lastChannel: Channel.ID?     // ⌫ flips back to it
+    @State private var keyed = false                // selection changed from the keyboard: no slide, no scroll animation
+    @State private var firstLoad = false            // rows rise in once, when a list first arrives
+    @State private var armFirstLoad = false         // set by adding or switching a playlist; never on launch, reload, filters or search
+    @State private var hostWindow: NSWindow?
+    @State private var keyMonitor: Any?
+    @AppStorage("compactList") private var compact = false
+    @State private var pip = false                  // the picture is in Picture in Picture
+    @State private var controlsAwake = false        // AVKit's controls in Watch mode: the mouse only, not a zap
+
     private var visible: [Channel] { store.items(for: filter, search: search) }
+    /// Watch mode hides the list only once something is on: with nothing playing you need it to pick.
+    private var listAside: Bool { watching && playback.current != nil }
 
     var body: some View {
         HStack(spacing: 0) {
-            rail.frame(width: 360)
-            Rectangle().fill(Brand.line).frame(width: 1)
+            if !listAside {
+                HStack(spacing: 0) {
+                    rail.frame(width: 360)
+                    Rectangle().fill(Brand.line).frame(width: 1)
+                }
+                .transition(.move(edge: .leading))     // leaves to the left, comes back from the left
+            }
             stage
         }
+        .animation(Motion.if(reduce, .easeOut(duration: 0.22)), value: listAside)
+        .overlay(alignment: .leading) { peekLayer }
         .background(Brand.ink)
+        .background(WindowReader { w in
+            hostWindow = w
+            // macOS can reopen the window already in full screen: that is Watch mode too.
+            if w.styleMask.contains(.fullScreen) { watching = true }
+        })
         .ignoresSafeArea()
         .sheet(isPresented: $showAdd) { AddPlaylistView() }
         .sheet(isPresented: $showUpdate) {
@@ -59,6 +91,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: store.selectedPlaylistID) { _, _ in
+            armFirstLoad = true
             store.reset(); filter = .all; selection = nil
             Task { await store.loadIfNeeded() }
         }
@@ -67,7 +100,9 @@ struct ContentView: View {
             Task { await store.loadIfNeeded() }
         }
         .task { await store.loadIfNeeded() }
-        .onChange(of: selection) { _, id in
+        .onChange(of: selection) { old, id in
+            if let old, old != id { lastChannel = old }
+            if watching, peek { closePeek(after: 0) }
             guard let id, let c = store.items.first(where: { $0.id == id }) else { return }
             if store.library == .series, let sid = Int(c.url.absoluteString.dropFirst(7)),
                let s = store.series.first(where: { $0.id == sid }) {
@@ -79,6 +114,33 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .nextChannel)) { _ in step(1) }
         .onReceive(NotificationCenter.default.publisher(for: .previousChannel)) { _ in step(-1) }
+        // Full screen is Watch mode. Once the window has grown, the list and the bar step aside;
+        // on the way out they come back as the window starts to shrink.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { n in
+            guard n.object as? NSWindow === hostWindow else { return }
+            peek = false
+            withAnimation(Motion.if(reduce, .easeOut(duration: 0.22))) { watching = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willExitFullScreenNotification)) { n in
+            guard n.object as? NSWindow === hostWindow else { return }
+            peek = false; chrome = false
+            withAnimation(Motion.if(reduce, .easeOut(duration: 0.22))) { watching = false }
+        }
+        .onChange(of: playback.current?.id) { _, _ in wake(instant: true) }
+        // Armed when loading starts, so the rows already know it when they first appear.
+        .onChange(of: store.isLoading) { _, loading in
+            if loading {
+                if armFirstLoad { firstLoad = true; armFirstLoad = false }
+                return
+            }
+            Task { @MainActor in try? await Task.sleep(for: .seconds(1.2)); firstLoad = false }
+        }
+        .onAppear {
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
+                MainActor.assumeIsolated { handleKey(e) } ? nil : e
+            }
+        }
+        .onDisappear { if let keyMonitor { NSEvent.removeMonitor(keyMonitor) } }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
@@ -92,8 +154,113 @@ struct ContentView: View {
         let list = visible
         guard !list.isEmpty else { return }
         let i = list.firstIndex { $0.id == selection } ?? (delta > 0 ? -1 : list.count)
-        withAnimation(Motion.if(reduce, Motion.snap)) {
-            selection = list[(i + delta + list.count) % list.count].id
+        select(list[(i + delta + list.count) % list.count].id, keyed: true)
+    }
+
+    /// Clicks slide the on-air highlight; keys (↑↓, numbers, ⌫) jump, because they repeat all evening.
+    private func select(_ id: Channel.ID?, keyed byKey: Bool) {
+        keyed = byKey
+        if byKey {
+            var t = Transaction(); t.disablesAnimations = true
+            withTransaction(t) { selection = id }
+        } else {
+            withAnimation(Motion.if(reduce, Motion.snap)) { selection = id }
+        }
+    }
+
+    /// Keys that work anywhere in the window, except while typing in a field or a sheet is open.
+    private func handleKey(_ e: NSEvent) -> Bool {
+        guard let w = hostWindow, e.window === w, w.attachedSheet == nil else { return false }
+        if searchFocused { return false }
+        if let r = w.firstResponder as? NSText, r.isFieldEditor { return false }
+        guard e.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return false }
+        switch e.keyCode {
+        case 53 where watching:                       // esc
+            if peek { closePeek(after: 0) } else { w.toggleFullScreen(nil) }
+            return true
+        case 36 where !peek && playback.current != nil:   // return: Watch mode on and off
+            w.toggleFullScreen(nil); return true
+        case 125 where watching && !peek: step(1); return true    // ↓
+        case 126 where watching && !peek: step(-1); return true   // ↑
+        case 51:                                      // ⌫: back to the last channel
+            guard let last = lastChannel else { return false }
+            select(last, keyed: true); return true
+        default:
+            guard let d = e.charactersIgnoringModifiers, d.count == 1, let n = Int(d) else { return false }
+            type(n); return true
+        }
+    }
+
+    /// Typing 0, 1, 5 tunes 015, like a remote. Waits a moment for more digits, or tunes at three.
+    private func type(_ digit: Int) {
+        typedTask?.cancel()
+        typed += String(digit)
+        if watching { wake(instant: true) }     // the card shows the digits as you type
+        let n = Int(typed) ?? 0
+        if typed.count == 3 || n * 10 > visible.count { commitTyped(); return }
+        typedTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
+            commitTyped()
+        }
+    }
+
+    private func commitTyped() {
+        let list = visible
+        if let n = Int(typed), n >= 1, n <= list.count { select(list[n - 1].id, keyed: true) }
+        typed = ""
+    }
+
+    /// Shows the channel card (Watch mode) or the floating now bar, then hides it after 3 s.
+    /// A zap shows it at once; the mouse fades it in.
+    private func wake(instant: Bool) {
+        chromeTask?.cancel()
+        if !instant { controlsAwake = true }
+        if !chrome {
+            if instant || reduce {
+                var t = Transaction(); t.disablesAnimations = true
+                withTransaction(t) { chrome = true }
+            } else {
+                withAnimation(.easeOut(duration: 0.15)) { chrome = true }
+            }
+        }
+        chromeTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            // The card after a zap fades in 200 ms; the card and controls woken by the mouse in 260 ms.
+            withAnimation(Motion.if(reduce, .easeOut(duration: controlsAwake ? 0.26 : 0.2))) { chrome = false }
+            controlsAwake = false
+            if watching, !peek { NSCursor.setHiddenUntilMouseMoves(true) }
+        }
+    }
+
+    private func openPeek() {
+        peekTask?.cancel()
+        withAnimation(Motion.if(reduce, .easeOut(duration: 0.22))) { peek = true }
+    }
+
+    private func closePeek(after delay: Double) {
+        peekTask?.cancel()
+        peekTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            withAnimation(Motion.if(reduce, .easeOut(duration: 0.22))) { peek = false }
+        }
+    }
+
+    /// In Watch mode: an 8-point strip at the left edge brings the list back over the picture.
+    @ViewBuilder private var peekLayer: some View {
+        if listAside {
+            if peek {
+                rail.frame(width: 360)
+                    .overlay(alignment: .trailing) { Rectangle().fill(Brand.line).frame(width: 1) }
+                    .shadow(color: .black.opacity(0.6), radius: 30)
+                    .onHover { inside in inside ? peekTask?.cancel() : closePeek(after: 0.5) }
+                    .transition(.move(edge: .leading))
+            } else {
+                Color.clear.frame(width: 8).frame(maxHeight: .infinity).contentShape(.rect)
+                    .onHover { if $0 { openPeek() } }
+            }
         }
     }
 
@@ -147,6 +314,7 @@ struct ContentView: View {
             Divider()
             Button("Add playlist…") { showAdd = true }
             Button("Reload") { Task { await store.reload() } }
+            Toggle("Compact list", isOn: $compact)
             if let p = store.selectedPlaylist {
                 Button("Remove “\(p.name)”", role: .destructive) { store.remove(p) }
             }
@@ -202,8 +370,10 @@ struct ContentView: View {
 
     @ViewBuilder private var listArea: some View {
         let list = visible
-        if store.isLoading {
+        // Before the first fetch starts the list is empty too: show "Tuning in", not "Nothing here yet".
+        if store.isLoading || (!store.hasLoaded && store.error == nil && !store.playlists.isEmpty) {
             RailMessage(title: "Tuning in", detail: nil, busy: true)
+                .transition(.identity)   // gone at once when the rows arrive, never fading over them
         } else if let e = store.error {
             RailMessage(title: "No signal", detail: e) { Task { await store.reload() } }
         } else if store.playlists.isEmpty {
@@ -211,18 +381,23 @@ struct ContentView: View {
         } else if list.isEmpty {
             RailMessage(title: search.isEmpty ? "Nothing here yet" : "No match", detail: search.isEmpty ? nil : "Nothing called “\(search)”.")
         } else {
-            ScrollViewReader { proxy in
+            ScrollViewReader { proxy in   // (no fade of its own: on first load the rows do the arriving)
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(Array(list.enumerated()), id: \.element.id) { i, c in
                             ChannelRow(number: i + 1, channel: c,
                                        now: store.library == .live ? store.nowPlaying(c, at: clock) : nil,
+                                       next: store.library == .live ? store.upNext(c, at: clock) : nil,
                                        onAir: c.id == selection,
-                                       favourite: store.favorites.contains(c.id), clock: clock, motion: motion)
+                                       favourite: store.favorites.contains(c.id), clock: clock, motion: motion,
+                                       compact: compact)
+                                // Proposal 05: every visible row rises 8 pt in 300 ms, 30 ms apart.
+                                .rise(Double(i) * 0.03, distance: 8, active: firstLoad && i < 24,
+                                      animation: .timingCurve(0.23, 1, 0.32, 1, duration: 0.3))
                                 .id(c.id)
                                 .contentShape(.rect)
                                 .onTapGesture {
-                                    withAnimation(Motion.if(reduce, Motion.snap)) { selection = c.id }
+                                    select(c.id, keyed: false)
                                     listFocused = true
                                 }
                                 .contextMenu {
@@ -253,11 +428,20 @@ struct ContentView: View {
                     NSApp.keyWindow?.toggleFullScreen(nil)
                     return .handled
                 }
+                .onAppear {   // back from Watch mode, or the peek: open on the channel that's on
+                    if let selection { proxy.scrollTo(selection, anchor: .center) }
+                }
                 .onChange(of: selection) { _, id in
                     guard let id else { return }
-                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) }
+                    if keyed || reduce {
+                        proxy.scrollTo(id, anchor: .center)
+                    } else {
+                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) }
+                    }
+                    keyed = false
                 }
             }
+            .transition(.identity)
         }
     }
 
@@ -278,7 +462,7 @@ struct ContentView: View {
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
             } else {
                 KeyHint(keys: "↑↓", label: "Zap")
-                KeyHint(keys: "⏎", label: "Full")
+                KeyHint(keys: "⏎", label: "Watch")
             }
         }
         .animation(Motion.if(reduce, Motion.snap), value: visible.count)
@@ -290,56 +474,104 @@ struct ContentView: View {
 
     /// Picture on the TV (a screen connected as a separate display), or back on this Mac.
     private func toggleTV() {
-        if tv.showing != nil { tv.hide(); return }
-        tv.show(TVScreenView(playback: playback) { c in
-            visible.firstIndex { $0.id == c.id }.map { $0 + 1 }
-        })
+        if tv.showing != nil { tv.hide(animated: !reduce); return }
+        tv.show(TVScreenView(playback: playback, tv: tv,
+                             number: { c in visible.firstIndex { $0.id == c.id }.map { $0 + 1 } },
+                             programme: { c in store.nowPlaying(c) }))
     }
+
+    private func number(of c: Channel) -> Int? { visible.firstIndex { $0.id == c.id }.map { $0 + 1 } }
 
     @ViewBuilder private var stage: some View {
         if let c = playback.current {
-            VStack(spacing: 0) {
-                ZStack(alignment: .topLeading) {
-                    Color.black
-                    if tv.showing != nil {
-                        OnTVScreenView(channel: c, screenName: tv.name) { tv.hide() }
-                            .transition(.opacity)
-                    } else {
-                    PlayerView(player: playback.player)
-                        .opacity(playback.isTuning ? 0 : 1)
-                    }
-                    if playback.isTuning, tv.showing == nil {
-                        TuningView(channel: c).id(c.id)
-                            .transition(.opacity)
-                    }
-                    if playback.soundOnly, !playback.isTuning, tv.showing == nil {
-                        SoundOnlyCard()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .allowsHitTesting(false)
-                            .transition(.opacity.combined(with: .scale(scale: 0.96)))
-                    }
-                    if let f = playback.failed {
-                        HStack(spacing: 10) {
-                            Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(Brand.ink)
-                            Text(f).font(.system(size: 12, weight: .semibold)).foregroundStyle(Brand.ink)
-                        }
-                        .padding(.horizontal, 14).padding(.vertical, 9)
-                        .background(Brand.signal, in: .capsule)
-                        .padding(20)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+            GeometryReader { g in
+                let now = store.nowPlaying(c, at: clock)
+                // The bar never shrinks the picture: docked only if a full-width 16:9 picture still fits above it.
+                let docked = !watching && g.size.height - (now == nil ? 64 : 124) >= g.size.width * 9 / 16
+                VStack(spacing: 0) {
+                    screen(c)
+                    if docked { nowBar(c, now: now, floating: false).transition(.move(edge: .bottom)) }
+                }
+                // Overlays on the picture stay in the view tree and fade by opacity: SwiftUI draws a view that is
+                // being removed underneath AppKit's player view, so a removal fade would never be seen.
+                .overlay(alignment: .bottom) {
+                    if !docked, !watching {
+                        nowBar(c, now: now, floating: true)
+                            .opacity(chrome ? 1 : 0).allowsHitTesting(chrome)
                     }
                 }
-                .animation(Motion.if(reduce, Motion.fade), value: playback.isTuning)
-                .animation(Motion.if(reduce, Motion.enter), value: playback.failed)
-                .animation(Motion.if(reduce, Motion.enter), value: playback.soundOnly)
-                NowBar(channel: c, now: store.nowPlaying(c, at: clock), clock: clock,
-                       favourite: store.favorites.contains(c.id),
-                       tv: TVControl(available: tv.available, on: tv.showing != nil, name: tv.name, toggle: toggleTV)) { store.toggleFavorite(c) }
+                .overlay(alignment: .topLeading) {
+                    if watching, tv.showing == nil {
+                        ChannelCard(channel: c, number: number(of: c), typed: typed.isEmpty ? nil : typed,
+                                    now: now, clock: clock, scale: 0.55)
+                            .padding(36).allowsHitTesting(false)
+                            .opacity(chrome || !typed.isEmpty ? 1 : 0)
+                    }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if !typed.isEmpty, !watching { NumberEntry(typed: typed).padding(28).allowsHitTesting(false) }
+                }
+            }
+            .onContinuousHover { phase in
+                if case .active = phase { wake(instant: false) }
             }
             .transition(.opacity)
         } else {
             Manifesto(action: store.playlists.isEmpty ? ("Add a playlist", { showAdd = true }) : nil)
         }
+    }
+
+    private func nowBar(_ c: Channel, now: Programme?, floating: Bool) -> some View {
+        NowBar(channel: c, now: now, next: store.upNext(c, at: clock), clock: clock,
+               favourite: store.favorites.contains(c.id),
+               tv: TVControl(available: tv.available, on: tv.showing != nil, name: tv.name, toggle: toggleTV),
+               floating: floating) { store.toggleFavorite(c) }
+    }
+
+    private func screen(_ c: Channel) -> some View {
+        ZStack(alignment: .topLeading) {
+            Color.black
+            // The picture stays in the view tree: SwiftUI can't animate AppKit's player view while removing it.
+            // On SHOW ON TV it shrinks and slides toward the TV; BACK TO MAC plays it in reverse.
+            let onTV = tv.showing != nil
+            PlayerView(player: playback.player, controls: !onTV && (!watching || controlsAwake),
+                       onPictureInPicture: { on in withAnimation(Motion.if(reduce, Motion.fade)) { pip = on } })
+                .opacity(playback.isTuning || onTV ? 0 : 1)
+                .scaleEffect(onTV && !reduce ? 0.92 : 1)
+                .offset(x: onTV && !reduce ? 24 : 0)
+                .animation(reduce ? Motion.fade : Motion.fade.delay(0.12), value: playback.isTuning)
+                .animation(reduce ? Motion.fade : (onTV ? .easeIn(duration: 0.3) : .easeOut(duration: 0.3)), value: onTV)
+            if onTV {
+                OnTVScreenView(channel: c, screenName: tv.name) { tv.hide(animated: !reduce) }
+                    .transition(.opacity)
+            }
+            if pip, tv.showing == nil {
+                InPictureInPictureView(channel: c)
+                    .transition(.opacity)
+            }
+            if tv.showing == nil {
+                TuningOverlay(channel: c, tuning: playback.isTuning)
+            }
+            if playback.soundOnly, !playback.isTuning, tv.showing == nil {
+                SoundOnlyCard()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+            if let f = playback.failed {
+                HStack(spacing: 10) {
+                    Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(Brand.ink)
+                    Text(f).font(.system(size: 12, weight: .semibold)).foregroundStyle(Brand.ink)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 9)
+                .background(Brand.signal, in: .capsule)
+                .padding(20)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(Motion.if(reduce, Motion.fade), value: playback.isTuning)
+        .animation(Motion.if(reduce, Motion.enter), value: playback.failed)
+        .animation(Motion.if(reduce, Motion.enter), value: playback.soundOnly)
     }
 }
 
@@ -349,11 +581,20 @@ struct ChannelRow: View {
     let number: Int
     let channel: Channel
     let now: Programme?
+    var next: Programme? = nil
     let onAir: Bool
     let favourite: Bool
     let clock: Date
     let motion: Namespace.ID
+    var compact = false
     @State private var hover = false
+
+    /// What's on and what's next, on hover. A tooltip, so the row never changes height under the pointer.
+    private var guideHelp: String {
+        [now.map { "Now: \($0.title)" },
+         next.map { "Next: \($0.start.formatted(date: .omitted, time: .shortened)) \($0.title)" }]
+            .compactMap { $0 }.joined(separator: "\n")
+    }
 
     private var fg: Color { onAir ? Brand.ink : Brand.paper }
     private var sub: Color { onAir ? Brand.ink.opacity(0.62) : Brand.dim }
@@ -374,8 +615,18 @@ struct ChannelRow: View {
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
-                if let now {
-                    Text(now.title).font(.system(size: 12, weight: .medium)).foregroundStyle(sub).lineLimit(1)
+                if let now, !compact {
+                    // On hover the line shows what's next, like the now bar's NEXT line. Same height, so nothing moves.
+                    Group {
+                        if hover, let next {
+                            Text("NEXT \(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
+                                .font(Brand.mono(11))
+                        } else {
+                            Text(now.title).font(.system(size: 12, weight: .medium))
+                        }
+                    }
+                    .foregroundStyle(sub).lineLimit(1)
+                    .frame(height: 15, alignment: .leading)
                     Hairline(value: now.progress(at: clock), on: onAir ? Brand.ink : Brand.paper.opacity(0.7),
                              off: onAir ? Brand.ink.opacity(0.15) : Brand.line)
                 }
@@ -388,7 +639,7 @@ struct ChannelRow: View {
             .saturation(onAir || hover ? 1 : 0)
             .opacity(onAir || hover ? 1 : 0.55)
         }
-        .padding(.horizontal, 14).padding(.vertical, 11)
+        .padding(.horizontal, 14).padding(.vertical, compact ? 6 : 11)
         .background {
             if onAir {
                 RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Brand.signal)
@@ -399,18 +650,21 @@ struct ChannelRow: View {
         }
         .padding(.horizontal, 8)
         .onHover { hover = $0 }
-        .animation(.easeOut(duration: 0.14), value: hover)
-        .animation(Motion.snap, value: onAir)
+        .help(compact ? guideHelp : "")   // compact rows have no programme line: the guide goes in a tooltip
     }
 }
 
 struct NowBar: View {
     let channel: Channel
     let now: Programme?
+    var next: Programme? = nil
     let clock: Date
     let favourite: Bool
     var tv: TVControl? = nil
+    /// Over the picture (window too wide and short for it to sit below): a scrim instead of the ink strip.
+    var floating = false
     let toggleFavourite: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -430,25 +684,66 @@ struct NowBar: View {
             }
             if let now {
                 HStack(alignment: .lastTextBaseline, spacing: 16) {
+                    // The programme rolls over: the old title leaves upward, the new one comes from below.
                     Text(now.title).font(Brand.display(26, .heavy)).foregroundStyle(Brand.paper)
                         .lineLimit(1).minimumScaleFactor(0.6)
-                        .contentTransition(.opacity)
+                        .id(now.title)
+                        .transition(reduce ? .opacity : .push(from: .bottom))
                     Spacer()
                     Text(now.span).font(Brand.mono(12)).foregroundStyle(Brand.dim)
+                        .contentTransition(.numericText())
                 }
-                BarsProgress(value: now.progress(at: clock), height: 4).frame(maxWidth: 320)
+                .clipped()
+                HStack(spacing: 16) {
+                    BarsProgress(value: now.progress(at: clock), height: 4).frame(maxWidth: 320)
+                    Spacer(minLength: 0)
+                    if let next {
+                        Text("NEXT \(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
+                            .font(Brand.mono(12)).foregroundStyle(Brand.faint).lineLimit(1)
+                            .id(next.title).transition(.opacity)
+                    }
+                }
             }
         }
+        .animation(reduce ? Motion.fade : .easeOut(duration: 0.26), value: now?.title)
         .id(channel.id)
-        .transition(.asymmetric(insertion: .offset(y: 18).combined(with: .opacity), removal: .opacity))
-        .padding(.horizontal, 24).padding(.vertical, 18)
+        .transition(reduce ? .opacity : .asymmetric(insertion: .offset(y: 18).combined(with: .opacity), removal: .opacity))
+        .padding(.horizontal, 24).padding(.top, floating ? 40 : 18).padding(.bottom, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .clipped()
-        .background(Brand.ink)
-        .overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
-        .animation(Motion.enter, value: channel.id)
-        .animation(Motion.fade, value: now)
+        .background {
+            if floating {
+                LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.55), .clear], startPoint: .bottom, endPoint: .top)
+            } else {
+                Brand.ink.overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
+            }
+        }
+        .animation(reduce ? Motion.fade : Motion.enter, value: channel.id)
     }
+}
+
+/// Digits typed to change channel, top right, like a TV remote's entry.
+struct NumberEntry: View {
+    let typed: String
+    var body: some View {
+        Text(typed.padding(toLength: 3, withPad: "–", startingAt: 0))
+            .font(.system(size: 34, weight: .heavy, design: .monospaced))
+            .foregroundStyle(Brand.ink)
+            .padding(.horizontal, 18).padding(.vertical, 10)
+            .background(Brand.paper, in: .rect(cornerRadius: 8, style: .continuous))
+            .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
+    }
+}
+
+/// Hands over the NSWindow the view lives in, for full-screen and key handling.
+struct WindowReader: NSViewRepresentable {
+    let found: (NSWindow) -> Void
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        DispatchQueue.main.async { if let w = v.window { found(w) } }
+        return v
+    }
+    func updateNSView(_ v: NSView, context: Context) {}
 }
 
 struct Hairline: View {
@@ -461,8 +756,7 @@ struct Hairline: View {
             .overlay(alignment: .leading) {
                 GeometryReader { g in Capsule().fill(on).frame(width: max(height, g.size.width * value)) }
             }
-            .animation(Motion.enter, value: value)
-            .frame(maxWidth: 220, alignment: .leading)
+            .frame(maxWidth: 220, alignment: .leading)   // updates in place once a minute: data you scan doesn't move
     }
 }
 
@@ -638,6 +932,7 @@ struct TVButton: View {
     let tv: TVControl
     @State private var help = false
     @State private var hover = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         if tv.available || tv.on {
             Button(action: tv.toggle) {
@@ -651,7 +946,7 @@ struct TVButton: View {
                 .scaleEffect(hover ? 1.04 : 1)
             }
             .buttonStyle(PressStyle())
-            .onHover { h in withAnimation(Motion.snap) { hover = h } }
+            .onHover { h in withAnimation(reduce ? nil : Motion.snap) { hover = h } }
             .help(tv.on ? "Bring the picture back to this Mac" : "Show the picture full screen on \(tv.name)")
             .transition(.scale(scale: 0.8).combined(with: .opacity))
         } else {

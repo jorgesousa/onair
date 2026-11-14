@@ -13,6 +13,8 @@ final class Store {
     var movies: [Channel] = []
     var series: [Series] = []
     private var loaded: Set<Library> = []
+    /// The current library has been fetched at least once (so an empty list really is empty).
+    var hasLoaded: Bool { loaded.contains(library) }
 
     /// What's on, by lower-cased XMLTV channel id.
     var guide: [String: [Programme]] = [:]
@@ -150,6 +152,13 @@ final class Store {
     func nowPlaying(_ c: Channel, at date: Date = .now) -> Programme? {
         guard let id = c.epgID?.lowercased() else { return nil }
         return guide[id]?.first { $0.start <= date && $0.end > date }
+    }
+
+    /// The programme after the one on now.
+    func upNext(_ c: Channel, at date: Date = .now) -> Programme? {
+        guard let id = c.epgID?.lowercased(), let list = guide[id] else { return nil }
+        let after = nowPlaying(c, at: date)?.end ?? date
+        return list.first { $0.start >= after.addingTimeInterval(-60) && $0.start > date }
     }
 
     /// Downloads the account's XMLTV guide at most every 3 hours.
