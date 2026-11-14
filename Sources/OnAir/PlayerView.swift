@@ -47,9 +47,6 @@ final class PlaybackController {
     private var session: (channel: String, url: URL)?
     /// The server refused us (usually: too many connections). Wait for a free slot before a new session.
     private var refused = false
-    /// Taps the decoded picture, only to know whether any frame has arrived (see `soundOnly`).
-    private var videoOutput: AVPlayerItemVideoOutput?
-    private var sawFrame = false
 
     init() {
         observations.append(player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] p, _ in
@@ -167,9 +164,6 @@ final class PlaybackController {
         itemTokens.append(nc.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main) { [weak self] _ in
             Task { @MainActor in if c.isLive { self?.problem(gen: gen, error: nil, ended: true) } }
         })
-        let out = AVPlayerItemVideoOutput(pixelBufferAttributes: nil)
-        item.add(out)
-        videoOutput = out; sawFrame = false
         player.replaceCurrentItem(with: item)
         player.play()
         lastTimeMoved = .now
@@ -205,11 +199,7 @@ final class PlaybackController {
         if player.timeControlStatus == .playing {
             if t.isFinite, abs(t - lastTime) > 0.01 { lastTime = t; lastTimeMoved = .now }
             // Sound has been playing for a while and still no picture.
-            if !sawFrame, let out = videoOutput,
-               out.hasNewPixelBuffer(forItemTime: out.itemTime(forHostTime: CACurrentMediaTime())) {
-                sawFrame = true
-            }
-            let noPicture = !sawFrame
+            let noPicture = player.currentItem?.presentationSize == .zero
             if let since = playingSince, Date.now.timeIntervalSince(since) > 6, current?.isLive == true {
                 if soundOnly != noPicture { soundOnly = noPicture }
             }
