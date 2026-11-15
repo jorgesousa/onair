@@ -76,3 +76,19 @@ import Testing
         #expect(Swipe.rubberBand(-300) == -far)
     }
 }
+
+@Suite struct PauseCountingTests {
+    @Test func onlyADeliberatePauseCountsTowardsLettingGo() {
+        #expect(ConnectionPolicy.pausedFor(after: 4, status: .paused) == 5)
+        #expect(ConnectionPolicy.pausedFor(after: 4, status: .waitingToPlayAtSpecifiedRate) == 0)
+        #expect(ConnectionPolicy.pausedFor(after: 4, status: .playing) == 0)
+    }
+}
+
+@Suite struct SameChannelTests {
+    @Test func movingToTheChannelAlreadyOnIsNoMove() {
+        #expect(Zap.move(from: "a", in: ["a"], by: 1) == nil)
+        #expect(Zap.move(from: "a", in: ["a", "b"], by: 1) == "b")
+        #expect(Zap.move(from: nil, in: ["a"], by: 1) == "a")
+    }
+}

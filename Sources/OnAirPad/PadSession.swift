@@ -17,6 +17,8 @@ final class PadSession: NSObject {
     @ObservationIgnored private var pausedFor: TimeInterval = 0
     @ObservationIgnored private var ticker: Timer?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// Asked for on leaving, so iOS doesn't suspend the app before the release decision runs.
+    @ObservationIgnored private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     @ObservationIgnored private let log = Logger(subsystem: "com.sousalab.onair", category: "session")
 
     /// "Picture in Picture when you leave" (on by default).
@@ -100,9 +102,11 @@ final class PadSession: NSObject {
         refreshIdleTimer()
         ticker?.invalidate(); ticker = nil
         pausedFor = 0
+        if phase == .active { endBackgroundTime() }
         // Judged a second later, not at once: leaving with Picture in Picture reports the
         // background slightly before Picture in Picture says it has started.
         if phase == .background {
+            holdBackgroundTime()
             ticker = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated { self?.tick() }
             }
@@ -114,13 +118,34 @@ final class PadSession: NSObject {
         UIApplication.shared.isIdleTimerDisabled = phase == .active && playback.current != nil
     }
 
+    fileprivate func holdBackgroundTime() {
+        guard backgroundTask == .invalid, playback.current != nil else { return }
+        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Let go of the connection") { [weak self] in
+            MainActor.assumeIsolated {
+                // Out of time: decide now rather than risk keeping the slot while suspended.
+                guard let self else { return }
+                if self.playback.current != nil, !self.pipActive { self.playback.release() }
+                self.endBackgroundTime()
+            }
+        }
+    }
+
+    private func endBackgroundTime() {
+        guard backgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTask)
+        backgroundTask = .invalid
+    }
+
     private func tick() {
-        guard playback.current != nil else { ticker?.invalidate(); ticker = nil; return }
-        pausedFor = playback.player.timeControlStatus == .playing ? 0 : pausedFor + 1
+        guard playback.current != nil else { ticker?.invalidate(); ticker = nil; endBackgroundTime(); return }
+        pausedFor = ConnectionPolicy.pausedFor(after: pausedFor, status: playback.player.timeControlStatus)
         if !ConnectionPolicy.keep(phase: phase, pip: pipActive, pausedFor: pausedFor) {
             log.info("release: nobody can see the picture (pip \(self.pipActive), paused \(self.pausedFor)s)")
             playback.release()
             refreshIdleTimer()
+            endBackgroundTime()
+        } else if pipActive {
+            endBackgroundTime()   // Picture in Picture keeps the app running on its own
         }
     }
 
@@ -136,6 +161,14 @@ extension PadSession: AVPictureInPictureControllerDelegate {
         Task { @MainActor in self.pipActive = true }
     }
     nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ c: AVPictureInPictureController) {
+        Task { @MainActor in
+            self.pipActive = false
+            // Closed from the background: keep the app awake long enough to let go of the slot.
+            if self.phase == .background { self.holdBackgroundTime() }
+        }
+    }
+    nonisolated func pictureInPictureController(_ c: AVPictureInPictureController,
+                                                failedToStartPictureInPictureWithError error: Error) {
         Task { @MainActor in self.pipActive = false }
     }
     nonisolated func pictureInPictureController(_ c: AVPictureInPictureController,

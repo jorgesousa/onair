@@ -26,6 +26,36 @@ class OnAirUITestCase: XCTestCase {
     var picture: XCUIElement { app.otherElements["picture"].firstMatch }
     var card: XCUIElement { app.otherElements["card"].firstMatch }
 
+    /// The controls hide 3 s after a tap; a slow simulator can take that long between two
+    /// steps. Wake them and press, again if they had already gone, until `done` holds.
+    func press(_ id: String, until done: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
+        for _ in 0..<3 {
+            let b = app.buttons[id]
+            if !b.exists { picture.tap() }
+            if b.waitForExistence(timeout: 2) { b.tap() }
+            if done() { return }
+            sleep(1)
+            if done() { return }
+        }
+        XCTFail("pressing \(id) didn't take", file: file, line: line)
+    }
+
+    /// The controls, shown (a tap wakes them only if they're not already up; a second tap hides them).
+    func control(_ id: String) -> XCUIElement {
+        let b = app.buttons[id]
+        if !b.exists { picture.tap() }
+        _ = b.waitForExistence(timeout: 2)
+        return b
+    }
+
+    /// The search field; under the picture it opens from the 🔍 button first.
+    func openSearch() -> XCUIElement {
+        let f = app.textFields["search"]
+        if !f.exists { app.buttons["Search channels"].tap() }
+        XCTAssertTrue(f.waitForExistence(timeout: 2))
+        return f
+    }
+
     func waitForCard(_ number: String, timeout: TimeInterval = 3, file: StaticString = #filePath, line: UInt = #line) {
         let p = NSPredicate(format: "value == %@", number)
         let ok = XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: p, object: card)], timeout: timeout) == .completed
@@ -216,11 +246,8 @@ final class LayoutTests: OnAirUITestCase {
         play("Test One")
         waitForMode("stacked")
         waitForStage("playing")
-        picture.tap()
-        app.buttons["expand"].tap()
-        waitForMode("watch")
-        app.buttons["collapse"].tap()   // the controls are still up
-        waitForMode("stacked")
+        press("expand") { root.value as? String == "watch" }
+        press("collapse") { root.value as? String == "stacked" }
     }
 
     func testLeftEdgeBringsTheListOverThePicture() {
@@ -281,15 +308,19 @@ final class TouchTests: OnAirUITestCase {
         picture.swipeUp()
         waitForCard("002")
         waitForStage("playing")
-        picture.tap()
-        let last = app.buttons["last"]
-        XCTAssertTrue(last.waitForExistence(timeout: 2))
+        let last = control("last")
+        XCTAssertTrue(last.exists)
         XCTAssertTrue(last.label.contains("Test One"), last.label)
         last.tap()
         waitForCard("001")
         waitForStage("playing")
-        picture.tap()
-        XCTAssertTrue(app.buttons["last"].label.contains("Test Two"), app.buttons["last"].label)
+        // The controls may hide between finding the button and reading it: look again if so.
+        var label = ""
+        for _ in 0..<3 where !label.contains("Test Two") {
+            let b = control("last")
+            if b.exists { label = b.label }
+        }
+        XCTAssertTrue(label.contains("Test Two"), label)
     }
 
     /// Portrait full screen: XCTest misplaces taps near the edges in landscape.
@@ -298,15 +329,14 @@ final class TouchTests: OnAirUITestCase {
         play("Test One")
         waitForMode("stacked")
         waitForStage("playing")
-        picture.tap()
-        app.buttons["expand"].tap()
-        waitForMode("watch")
-        let list = app.buttons["list"]   // the controls are still up from the tap before
-        XCTAssertTrue(list.waitForExistence(timeout: 2))
-        XCTAssertGreaterThanOrEqual(list.frame.width, 54)
-        list.tap()
-        sleep(1)
-        XCTAssertGreaterThan(rail.frame.minX, -2)
+        press("expand") { root.value as? String == "watch" }
+        var width: CGFloat = 0
+        for _ in 0..<3 where width == 0 {
+            let b = control("list")
+            if b.exists { width = b.frame.width }
+        }
+        XCTAssertGreaterThanOrEqual(width, 54)
+        press("list") { rail.frame.minX > -2 }
         screenshot("list-over-picture")
     }
 }
@@ -361,5 +391,59 @@ final class PlaylistTests: OnAirUITestCase {
         XCTAssertFalse(app.buttons["Update"].exists)
         screenshot("about")
         app.buttons["about-done"].tap()
+    }
+}
+
+final class ReviewFixTests: OnAirUITestCase {
+    /// One channel in the list: a swipe has nowhere to go and must not re-tune (that would
+    /// reopen the provider's only connection).
+    func testSwipeOnAOneChannelListLeavesThePictureAlone() {
+        app.launch()
+        play("Test Two")
+        waitForMode("stacked")
+        waitForStage("playing")
+        let search = openSearch()
+        search.tap(); search.typeText("two")
+        XCTAssertTrue(app.buttons["channel-Test Two"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["channel-Test One"].exists)
+        picture.swipeUp()
+        for _ in 0..<12 { XCTAssertEqual(stage.value as? String, "playing"); usleep(250_000) }
+    }
+
+    /// Digits typed into search are search text, not channel numbers.
+    func testTypingDigitsInSearchDoesNotChangeChannel() {
+        app.launch()
+        play("Test One")
+        waitForMode("stacked")
+        waitForStage("playing")
+        let search = openSearch()
+        search.tap(); search.typeText("3")
+        sleep(2)
+        XCTAssertEqual(search.value as? String, "3")
+        XCTAssertTrue(app.staticTexts["TEST ONE"].exists, "the now bar should still say Test One")
+        XCTAssertEqual(stage.value as? String, "playing")
+    }
+}
+
+/// Diagnosis only: plays the first channel of a real playlist passed in ONAIR_PROBE_ARGS
+/// (hex JSON of [Playlist], via TEST_RUNNER_ONAIR_PROBE_ARGS) and logs the stage for a minute.
+/// Skipped in normal runs; nothing about the playlist is written to the repo.
+final class LiveProbe: OnAirUITestCase {
+    func testProbeFirstChannel() throws {
+        guard let hex = ProcessInfo.processInfo.environment["ONAIR_PROBE_ARGS"] else { throw XCTSkip("diagnosis only") }
+        let id = ProcessInfo.processInfo.environment["ONAIR_PROBE_SELECTED"] ?? ""
+        app.launchArguments = ["-playlists", "<\(hex)>", "-selected", id]
+        app.launch()
+        let first = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel-'")).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 60), "list didn't load")
+        first.tap()
+        var last = ""
+        let start = Date()
+        while Date().timeIntervalSince(start) < 60 {
+            let v = (stage.value as? String) ?? "?"
+            if v != last { print(String(format: "PROBE %5.1fs %@", Date().timeIntervalSince(start), v)); last = v }
+            usleep(500_000)
+        }
+        screenshot("probe")
     }
 }

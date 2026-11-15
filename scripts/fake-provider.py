@@ -41,7 +41,8 @@ class H(http.server.BaseHTTPRequestHandler):
             progs = ""
             for n, i, u in STREAMS:
                 a = now - datetime.timedelta(minutes=30); b = now + datetime.timedelta(seconds=75); c = b + datetime.timedelta(minutes=45)
-                progs += f'<programme start="{fmt(a)}" stop="{fmt(b)}" channel="{i}"><title>{n} Evening Show</title></programme>'
+                title = f"{n} Evening Show" if i != "t3" else f"{n}: The Very Long Evening Show With Highlights And Interviews"   # long title: marquee
+                progs += f'<programme start="{fmt(a)}" stop="{fmt(b)}" channel="{i}"><title>{title}</title></programme>'
                 progs += f'<programme start="{fmt(b)}" stop="{fmt(c)}" channel="{i}"><title>{n} Late News</title></programme>'
             self.send(f'<?xml version="1.0"?><tv>{progs}</tv>', "application/xml")
         else:

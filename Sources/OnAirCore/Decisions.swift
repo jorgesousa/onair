@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreGraphics
 import Foundation
 
@@ -16,6 +17,13 @@ enum Zap {
     static func shouldCommit(typed: String, count: Int) -> Bool {
         let n = Int(typed) ?? 0
         return typed.count >= 3 || n * 10 > count
+    }
+
+    /// Like `step`, but nil when it would land on the channel already on (a one-channel
+    /// list): re-tuning it would reopen the provider's only connection for nothing.
+    static func move(from current: Channel.ID?, in list: [Channel.ID], by delta: Int) -> Channel.ID? {
+        guard let next = step(from: current, in: list, by: delta), next != current else { return nil }
+        return next
     }
 
     /// The channel with that 1-based number, if there is one.
@@ -41,6 +49,12 @@ enum ScenePhaseLike { case active, inactive, background }
 /// the app on screen, or Picture in Picture that is actually playing.
 enum ConnectionPolicy {
     static let pausedGrace: TimeInterval = 10
+
+    /// One more second of pause, or back to zero. Only a pause you chose counts: a stream
+    /// stalling (waiting to play) is the reconnect logic's job, not a reason to let go.
+    static func pausedFor(after seconds: TimeInterval, status: AVPlayer.TimeControlStatus) -> TimeInterval {
+        status == .paused ? seconds + 1 : 0
+    }
 
     static func keep(phase: ScenePhaseLike, pip: Bool, pausedFor: TimeInterval) -> Bool {
         switch phase {

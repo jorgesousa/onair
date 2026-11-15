@@ -1,6 +1,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// iPad: the same sheet, a quarter bigger, read at arm's length. The Mac keeps its sizes.
+private let uiScale: CGFloat = Platform.touch > 0 ? 1.25 : 1
+
 struct AddPlaylistView: View {
     @Environment(Store.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -23,17 +26,17 @@ struct AddPlaylistView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text("TUNE IN").font(Brand.display(28, .black)).foregroundStyle(Brand.paper)
+                Text("TUNE IN").font(Brand.display(28 * uiScale, .black)).foregroundStyle(Brand.paper)
                 Spacer()
                 Mark(size: 18)
             }
             Text(kind == .free ? "Public lists of channels that are free to watch." : "Bring your own playlist, or start with a free one.")
-                .font(.system(size: 13)).foregroundStyle(Brand.dim).padding(.top, 6)
+                .font(.system(size: 13 * uiScale)).foregroundStyle(Brand.dim).padding(.top, 6)
 
             HStack(spacing: 6) {
                 ForEach(Kind.allCases, id: \.self) { k in
                     Button { withAnimation(Motion.snap) { kind = k } } label: {
-                        Text(k.rawValue.uppercased()).font(Brand.display(10, .bold)).tracking(1)
+                        Text(k.rawValue.uppercased()).font(Brand.display(10 * uiScale, .bold)).tracking(1)
                             .foregroundStyle(kind == k ? Brand.ink : Brand.dim)
                             .padding(.horizontal, 14).padding(.vertical, 9)
                             .frame(minHeight: Platform.touch)
@@ -53,7 +56,7 @@ struct AddPlaylistView: View {
                     HStack(spacing: 8) {
                         Field(label: "Link or file", text: $location, prompt: "http://…/playlist.m3u")
                         Button { picking = true } label: {
-                            Image(systemName: "folder").font(.system(size: 13, weight: .semibold)).foregroundStyle(Brand.paper)
+                            Image(systemName: "folder").font(.system(size: 13 * uiScale, weight: .semibold)).foregroundStyle(Brand.paper)
                                 .frame(width: 46, height: 46).background(Brand.raised, in: .rect(cornerRadius: 12))
                         }
                         .buttonStyle(.plain).help("Choose a file")
@@ -67,7 +70,7 @@ struct AddPlaylistView: View {
             .animation(Motion.if(false, Motion.enter), value: kind)
 
             Text("Use only playlists you're entitled to. Passwords stay in your Keychain.")
-                .font(.system(size: 11)).foregroundStyle(Brand.faint).padding(.top, 14)
+                .font(.system(size: 11 * uiScale)).foregroundStyle(Brand.faint).padding(.top, 14)
             }
 
             Spacer(minLength: 0)
@@ -76,11 +79,11 @@ struct AddPlaylistView: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .frame(minWidth: Platform.touch, minHeight: Platform.touch)
-                    .buttonStyle(.plain).font(Brand.display(10, .bold)).tracking(1).foregroundStyle(Brand.dim)
+                    .buttonStyle(.plain).font(Brand.display(10 * uiScale, .bold)).tracking(1).foregroundStyle(Brand.dim)
                     .keyboardShortcut(.cancelAction)
                 if kind != .free {
                 Button(action: add) {
-                    Text("ADD").font(Brand.display(11, .bold)).tracking(1).foregroundStyle(Brand.ink)
+                    Text("ADD").font(Brand.display(11 * uiScale, .bold)).tracking(1).foregroundStyle(Brand.ink)
                         .padding(.horizontal, 22).padding(.vertical, 12)
                         .frame(minHeight: Platform.touch)
                         .background(Brand.signal.opacity(valid ? 1 : 0.35), in: .capsule)
@@ -94,8 +97,14 @@ struct AddPlaylistView: View {
         }
         .padding(30)
         // One size for both kinds, so switching never clips the title or the buttons.
+        #if os(iOS)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Brand.ink)
+        .presentationBackground(Brand.ink)
+        #else
         .frame(width: 480, height: 512, alignment: .top)
         .background(Brand.ink)
+        #endif
         .onAppear { if store.playlists.isEmpty { kind = .free } }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.plainText, .data]) { result in
             if case .success(let url) = result { location = PlaylistFiles.location(forPicked: url) }
@@ -121,15 +130,15 @@ struct AddPlaylistView: View {
                 }
             }
             .scrollIndicators(.never)
-            .frame(maxHeight: 286)
+            .frame(maxHeight: Platform.touch > 0 ? .infinity : 286)
             Text("From iptv-org and Free-TV, open projects that only list free, public streams. Some channels may be offline or blocked where you are.")
-                .font(.system(size: 11)).foregroundStyle(Brand.faint).fixedSize(horizontal: false, vertical: true)
+                .font(.system(size: 11 * uiScale)).foregroundStyle(Brand.faint).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 6) {
-                Text("Know another free, legal list?").font(.system(size: 11)).foregroundStyle(Brand.dim)
+                Text("Know another free, legal list?").font(.system(size: 11 * uiScale)).foregroundStyle(Brand.dim)
                 Button { openURL(FreeList.suggestPage) } label: {
                     HStack(spacing: 3) {
-                        Text("Suggest a list").font(.system(size: 11, weight: .bold))
-                        Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .bold))
+                        Text("Suggest a list").font(.system(size: 11 * uiScale, weight: .bold))
+                        Image(systemName: "arrow.up.right").font(.system(size: 8 * uiScale, weight: .bold))
                     }
                     .foregroundStyle(Brand.paper)
                     .underline()
@@ -163,7 +172,7 @@ private struct Field: View {
                 if secure { SecureField("", text: $text) }
                 else { TextField("", text: $text, prompt: Text(prompt).foregroundStyle(Brand.faint)) }
             }
-            .textFieldStyle(.plain).font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.paper)
+            .textFieldStyle(.plain).font(.system(size: 13 * uiScale, weight: .medium)).foregroundStyle(Brand.paper)
             .accessibilityIdentifier("field-\(label)")
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -182,13 +191,13 @@ private struct FreeListRow: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(list.name.uppercased()).font(Brand.display(12)).foregroundStyle(Brand.paper)
-                    Text(list.detail).font(.system(size: 12)).foregroundStyle(Brand.dim)
+                    Text(list.name.uppercased()).font(Brand.display(12 * uiScale)).foregroundStyle(Brand.paper)
+                    Text(list.detail).font(.system(size: 12 * uiScale)).foregroundStyle(Brand.dim)
                 }
                 Spacer()
-                Text(list.source).font(Brand.mono(10)).foregroundStyle(Brand.faint)
+                Text(list.source).font(Brand.mono(10 * uiScale)).foregroundStyle(Brand.faint)
                 Image(systemName: added ? (hover ? "xmark" : "checkmark") : "plus")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 11 * uiScale, weight: .bold))
                     .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(hover ? Brand.ink : Brand.paper)
                     .frame(width: 26, height: 26)

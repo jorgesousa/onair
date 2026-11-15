@@ -128,7 +128,7 @@ final class Store {
                 if let a = account, case .xtream = p.source {
                     channels = try await a.live()
                 } else if case .m3u(let location) = p.source {
-                    let url = location.hasPrefix("/") ? URL(fileURLWithPath: location) : URL(string: location)
+                    let url = PlaylistFiles.url(for: location)
                     guard let url else { throw URLError(.badURL) }
                     channels = M3UParser.parse(String(decoding: try await Net.data(url), as: UTF8.self), base: url)
                 }

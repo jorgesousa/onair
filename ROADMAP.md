@@ -19,12 +19,22 @@
 - [x] Auditoria das duas revisões (minha + agente independente): corrigidos 05 só ao adicionar/mudar de playlist, linhas de progresso paradas, Watch 0,22 s, cartão 0,2 s, número a contar, dígitos no cartão, imagem a ir para a TV e voltar, NEXT ao passar o rato, cartão da TV 3 s, cartão de teste a aparecer em fade, Reduce Motion com fades, hover instantâneo, linhas compactas 34 pt, ⏎ em toda a janela, fades por cima da imagem
 - [ ] Por testar: lista a espreitar pela borda esquerda e NEXT ao passar o rato (precisam do rato), modo TV com a Samsung
 - [ ] Publicar 0.1.4 com a regra de uma ligação (precisa de OK)
+- [x] iPad (ramo `ipad`): código partilhado em `Sources/OnAirCore`, app iPad em `iPad/OnAir.xcodeproj` + `Sources/OnAirPad`; o Mac continua igual
+- [x] iPad: lista, modo Watch em paisagem, imagem por cima e lista por baixo em retrato, lista a espreitar pela borda, deslizar para cima/baixo muda de canal (cartão em baixo à esquerda, longe do resultado), voltar ao último canal, controlos grandes, AirPlay, PiP sem botões de saltar
+- [x] iPad: ecrã sempre aceso a ver; a ligação ao fornecedor é libertada se ninguém vê a imagem (sair sem PiP, fechar o PiP, PiP em pausa 10 s) e fica "Resume" a um toque
+- [x] iPad: 23 testes de interface no simulador (iPad Pro 13, iPad mini em iOS 26.5, iPad Air 11) contra o fornecedor falso (`scripts/fake-provider.py`, `scripts/test-ipad.sh`) + revisão independente com correções
+- [ ] iPad no aparelho real (precisa do Jorge): ligar por cabo, Developer Mode, instalar pelo Xcode; confirmar ecrã aceso durante um jogo, PiP por cima de outra app, teclado físico, ficheiro M3U pela app Ficheiros, janelas do iPadOS 26
+- [ ] iPad: pequenos pendentes da revisão — zap pendente não cancelado por toque na lista, uma só janela, ⏎ em paisagem, menu da playlist nos controlos, apagar cópias de ficheiros ao remover
+- [ ] Mac: pôr também o cartão do canal em baixo à esquerda no modo Watch (o canto de cima é do resultado)
+- [ ] Juntar o ramo `ipad` ao `main` (precisa de OK)
 
 ## Next
 - [x] TV como segundo ecrã (janela em ecrã inteiro no ecrã da TV), como peça isolada sem mexer na reprodução — esboço em `airplay-experiments:Sources/OnAir/TVScreen.swift`
 - [ ] AirPlay: só o botão normal do leitor; canais do fornecedor com limite de 1 ligação não são fiáveis por AirPlay directo
 
 - [ ] Partilhar a ligação única entre Mac e iPad. Primeiro (pequeno): passar a sessão já resolvida do Mac para o iPad ("Ver no iPad") e guardar a sessão para um reinício não esperar ~2 min — medir com `connections()`. Depois, se valer a pena: relay dentro da app do Mac (Bonjour, mesmo canal em vários aparelhos) ou Dispatcharr num aparelho sempre ligado. Uma ligação = um canal de cada vez.
+
+- [ ] Dispatcharr em casa: correr o Dispatcharr (Docker, num aparelho sempre ligado) com a conta do fornecedor, apontar o ONAIR do Mac e do iPad para a API Xtream dele, e confirmar que dois aparelhos no mesmo canal gastam uma só ligação (`active_cons`). Ver se o caminho `.m3u8` funciona tal como está.
 
 ## Later
 - Transição do sintonizador (barras + número) no ecrã da TV

@@ -24,6 +24,7 @@ struct PadRoot: View {
     @State private var barHeight: CGFloat = 0
     @State private var showAdd = false
     @State private var showAbout = false
+    @State private var searching = false
     // Watching: controls + channel card for 3 s after a touch or a zap.
     @State private var chrome = false
     @State private var controlsShown = false   // the bar comes with a tap only, not with a zap
@@ -48,7 +49,7 @@ struct PadRoot: View {
             content(full: full, inset: inset, mode: mode)
                 .frame(width: full.width, height: full.height)
                 .position(x: full.width / 2 - inset.leading, y: full.height / 2 - inset.top)
-                .defersSystemGestures(on: mode == .watch ? .vertical : [])
+                .defersSystemGestures(on: mode == .watch ? .vertical : mode == .stacked ? .top : [])
                 .background { keyboardShortcuts }
                 .statusBarHidden(mode == .watch)
                 .persistentSystemOverlays(mode == .watch ? .hidden : .automatic)
@@ -103,7 +104,7 @@ struct PadRoot: View {
             // 2. Stacked: what's on, docked under the picture.
             if mode == .stacked, let c = playback.current {
                 NowBar(channel: c, now: store.nowPlaying(c, at: clock), next: store.upNext(c, at: clock),
-                       clock: clock, favourite: store.favorites.contains(c.id), floating: false) {
+                       clock: clock, favourite: store.favorites.contains(c.id), floating: false, compact: true) {
                     store.toggleFavorite(c)
                 }
                 .frame(width: full.width)
@@ -123,7 +124,8 @@ struct PadRoot: View {
             // 4. The list.
             PadRail(filter: $filter, search: $search, compact: $compact, selection: selection,
                     firstLoad: firstLoad, clock: clock, motion: motion,
-                    onPick: pick, onAdd: { showAdd = true }, onAbout: { showAbout = true })
+                    onPick: pick, onAdd: { showAdd = true }, onAbout: { showAbout = true },
+                    onSearchFocus: { searching = $0 }, condensed: mode == .stacked)
                 .padding(.top, rail.minY == 0 ? inset.top : 0)
                 .padding(.bottom, inset.bottom)
                 .padding(.leading, rail.minX <= 0 && mode != .stacked ? inset.leading : 0)
@@ -206,15 +208,19 @@ struct PadRoot: View {
                     onPinch: { out in withAnimation(Motion.if(reduce, Motion.snap)) { fill = out } })
                 .accessibilityIdentifier("picture")
                 channelCard(mode: mode, inset: inset)
-                PadControls(mode: mode, expanded: expanded, lastName: lastChannelName,
-                            onList: { setPeek(true) }, onLast: backToLast, onExpand: toggleExpanded)
-                    .padding(.horizontal, 20)
-                    .padding(.top, (mode == .watch ? inset.top : 0) + 16)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .opacity(chrome && controlsShown ? 1 : 0)
-                    .allowsHitTesting(chrome && controlsShown)
+                // On iPad the controls leave the tree when hidden (no AppKit view to fade under),
+                // so nothing invisible can be tapped.
+                if chrome && controlsShown {
+                    PadControls(mode: mode, expanded: expanded, lastName: lastChannelName,
+                                onList: { setPeek(true) }, onLast: backToLast, onExpand: toggleExpanded)
+                        .padding(.horizontal, 20)
+                        .padding(.top, (mode == .watch ? inset.top : 0) + 16)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                }
             }
         }
+        .clipped()
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("stage")
         .accessibilityValue(stageState)
@@ -246,6 +252,12 @@ struct PadRoot: View {
     // MARK: Picking and the peek
 
     private func pick(_ c: Channel) {
+        // Already on: re-tuning would reopen the provider's only connection for nothing.
+        if c.id == playback.current?.id {
+            selection = c.id
+            if peek { setPeek(false) }
+            return
+        }
         if let s = selection, s != c.id { lastChannel = s }
         selection = c.id
         session.play(c)
@@ -275,7 +287,7 @@ struct PadRoot: View {
     /// A swipe: the card shows where you're going at once; the stream starts when the swiping
     /// stops (0.6 s), so flicking past five channels opens one connection, not five.
     private func zap(_ delta: Int) {
-        guard let id = Zap.step(from: pending ?? selection, in: visible.map(\.id), by: delta) else { return }
+        guard let id = Zap.move(from: pending ?? selection, in: visible.map(\.id), by: delta) else { return }
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) { pending = id }
         wake(controls: false)
@@ -290,7 +302,7 @@ struct PadRoot: View {
 
     /// Keys behave as on the Mac: they jump at once, because they repeat.
     private func step(_ delta: Int) {
-        guard let id = Zap.step(from: selection, in: visible.map(\.id), by: delta),
+        guard let id = Zap.move(from: selection, in: visible.map(\.id), by: delta),
               let c = store.items.first(where: { $0.id == id }) else { return }
         pick(c); wake(controls: false)
     }
@@ -331,6 +343,7 @@ struct PadRoot: View {
                 Button("Channel digit \(d)") { type(d) }.keyboardShortcut(KeyEquivalent(Character("\(d)")), modifiers: [])
             }
         }
+        .disabled(searching || showAdd || showAbout)
         .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true)
     }
 

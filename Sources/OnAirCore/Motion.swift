@@ -155,3 +155,62 @@ struct TuningView: View {
         }
     }
 }
+
+/// A title too long for its space glides to its end and back, like the Companion Clock:
+/// 2.5 s still, a 45 pt/s ease-in-out glide (a little past the end), 2.5 s still, back.
+/// The right edge fades while it can scroll. Reduce Motion: still, cut with "…".
+struct Marquee: View {
+    let text: String
+    let font: Font
+    var color: Color = Brand.paper
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var textWidth: CGFloat = 0
+    @State private var boxWidth: CGFloat = 0
+    @State private var x: CGFloat = 0
+
+    private var overflow: CGFloat { textWidth - boxWidth }
+    private var scrolls: Bool { overflow > 4 && !reduce }
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            // Measures the full title, whatever the box allows.
+            Text(text).font(font).lineLimit(1).fixedSize().hidden()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { textWidth = $0 }
+            if scrolls {
+                Text(text).font(font).foregroundStyle(color).lineLimit(1).fixedSize()
+                    .offset(x: x)
+            } else {
+                Text(text).font(font).foregroundStyle(color).lineLimit(1).truncationMode(.tail)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { boxWidth = $0 }
+        .clipped()
+        .mask {
+            if scrolls {
+                LinearGradient(stops: [.init(color: .black, location: 0),
+                                       .init(color: .black, location: max(0, 1 - 28 / max(boxWidth, 1))),
+                                       .init(color: .clear, location: 1)],
+                               startPoint: .leading, endPoint: .trailing)
+            } else {
+                Rectangle()
+            }
+        }
+        .accessibilityLabel(text)
+        .task(id: "\(text)|\(Int(textWidth))|\(Int(boxWidth))|\(reduce)") {
+            x = 0
+            guard scrolls else { return }
+            let distance = overflow + 30
+            let run = Double(distance / 45)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2.5))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: run)) { x = -distance }
+                try? await Task.sleep(for: .seconds(run + 2.5))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: run)) { x = 0 }
+                try? await Task.sleep(for: .seconds(run))
+            }
+        }
+    }
+}

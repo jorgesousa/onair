@@ -140,10 +140,79 @@ struct NowBar: View {
     var accessory: AnyView? = nil
     /// Over the picture (window too wide and short for it to sit below): a scrim instead of the ink strip.
     var floating = false
+    /// iPad portrait: tight vertical spacing (the channel card on the picture carries the rest).
+    var compact = false
     let toggleFavourite: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
+        Group {
+            if compact { compactBody } else { fullBody }
+        }
+        .animation(reduce ? Motion.fade : .easeOut(duration: 0.26), value: now?.title)
+        .id(channel.id)
+        .transition(reduce ? .opacity : .asymmetric(insertion: .offset(y: 18).combined(with: .opacity), removal: .opacity))
+        .padding(.horizontal, compact ? 20 : 24)
+        .padding(.top, compact ? 12 : (floating ? 40 : 18)).padding(.bottom, compact ? 12 : 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .clipped()
+        .background {
+            if floating {
+                LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.55), .clear], startPoint: .bottom, endPoint: .top)
+            } else {
+                Brand.ink.overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
+            }
+        }
+        .animation(reduce ? Motion.fade : Motion.enter, value: channel.id)
+    }
+
+    private var livePill: some View {
+        HStack(spacing: 7) {
+            Circle().fill(.white).frame(width: 6, height: 6)
+            Text("LIVE").font(Brand.display(9)).tracking(1.4)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(Brand.live, in: .capsule)
+    }
+
+    private var star: some View {
+        IconButton(symbol: favourite ? "star.fill" : "star", help: favourite ? "Remove from saved" : "Save",
+                   tint: favourite ? Brand.signal : Brand.dim, action: toggleFavourite)
+            .frame(minWidth: Platform.touch, minHeight: Platform.touch)
+    }
+
+    /// iPad portrait: two rows. The channel's name is left to the list and the channel card.
+    private var compactBody: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 12) {
+                livePill
+                Marquee(text: now?.title ?? channel.displayName, font: Brand.display(20, .heavy))
+                    .id(now?.title ?? channel.id)
+                    .transition(reduce ? .opacity : .push(from: .bottom))
+                Spacer(minLength: 8)
+                if let now {
+                    Text(now.span).font(Brand.mono(13)).foregroundStyle(Brand.dim)
+                        .contentTransition(.numericText()).fixedSize()
+                }
+                star
+            }
+            .clipped()
+            if let now {
+                HStack(spacing: 16) {
+                    BarsProgress(value: now.progress(at: clock), height: 4).frame(maxWidth: 260)
+                    Spacer(minLength: 0)
+                    if let next {
+                        Text("NEXT \(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
+                            .font(Brand.mono(13)).foregroundStyle(Brand.faint).lineLimit(1)
+                            .id(next.title).transition(.opacity)
+                    }
+                }
+            }
+        }
+    }
+
+    private var fullBody: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 HStack(spacing: 7) {
@@ -182,20 +251,6 @@ struct NowBar: View {
                 }
             }
         }
-        .animation(reduce ? Motion.fade : .easeOut(duration: 0.26), value: now?.title)
-        .id(channel.id)
-        .transition(reduce ? .opacity : .asymmetric(insertion: .offset(y: 18).combined(with: .opacity), removal: .opacity))
-        .padding(.horizontal, 24).padding(.top, floating ? 40 : 18).padding(.bottom, 18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .clipped()
-        .background {
-            if floating {
-                LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.55), .clear], startPoint: .bottom, endPoint: .top)
-            } else {
-                Brand.ink.overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
-            }
-        }
-        .animation(reduce ? Motion.fade : Motion.enter, value: channel.id)
     }
 }
 
