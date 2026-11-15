@@ -54,3 +54,25 @@ import Testing
         #expect(ConnectionPolicy.keep(phase: .background, pip: true, pausedFor: 10) == false)
     }
 }
+
+@Suite struct SwipeTests {
+    @Test func swipeUpIsNextChannelByDistanceOrFlick() {
+        #expect(Swipe.step(travel: -61, velocity: 0) == 1)
+        #expect(Swipe.step(travel: -30, velocity: -600) == 1)
+    }
+    @Test func swipeDownIsPreviousChannel() {
+        #expect(Swipe.step(travel: 61, velocity: 0) == -1)
+        #expect(Swipe.step(travel: 30, velocity: 600) == -1)
+    }
+    @Test func smallSlowDragsDoNothing() {
+        #expect(Swipe.step(travel: -30, velocity: -100) == 0)
+        #expect(Swipe.step(travel: 0, velocity: 0) == 0)
+    }
+    @Test func pictureFollowsTheFingerThenResists() {
+        #expect(Swipe.rubberBand(50) == 50)
+        #expect(Swipe.rubberBand(-50) == -50)
+        let far = Swipe.rubberBand(300)
+        #expect(far > 80 && far < 130)
+        #expect(Swipe.rubberBand(-300) == -far)
+    }
+}
