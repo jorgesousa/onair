@@ -58,6 +58,8 @@ struct PadRoot: View {
                 .animation(Motion.if(reduce, .easeOut(duration: 0.22)), value: mode)
         }
         .background(Brand.ink.ignoresSafeArea())
+        .sheet(isPresented: $showAdd) { AddPlaylistView() }
+        .sheet(isPresented: $showAbout) { PadAbout() }
         .task { await store.loadIfNeeded() }
         .task {
             while !Task.isCancelled {

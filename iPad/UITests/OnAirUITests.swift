@@ -310,3 +310,56 @@ final class TouchTests: OnAirUITestCase {
         screenshot("list-over-picture")
     }
 }
+
+final class PlaylistTests: OnAirUITestCase {
+    /// No playlists at all, as on a first launch.
+    static let emptyArgs = ["-playlists", "<5b5d>"]
+
+    func fill(_ label: String, _ text: String) {
+        let f = app.descendants(matching: .any)["field-\(label)"].firstMatch
+        XCTAssertTrue(f.waitForExistence(timeout: 3), "no field \(label)")
+        f.tap(); f.typeText(text)
+    }
+
+    func testAddingAnXtreamAccountThenRemovingIt() {
+        app.launchArguments = Self.emptyArgs
+        app.launch()
+        app.buttons["Add playlist"].firstMatch.tap()
+        app.buttons["XTREAM CODES"].tap()
+        fill("Name", "Kitchen")
+        fill("Server", "http://127.0.0.1:18765")
+        fill("Username", "t")
+        fill("Password", "fake-secret-42")
+        screenshot("add-xtream")
+        app.buttons["ADD"].tap()
+        play("Test Two")
+        waitForStage("playing")
+
+        // Still there after a relaunch, with no help from launch arguments.
+        app.terminate()
+        app.launchArguments = []
+        app.launch()
+        XCTAssertTrue(app.buttons["channel-Test Two"].waitForExistence(timeout: 15))
+
+        app.buttons["playlist-menu"].firstMatch.tap()
+        let remove = app.buttons["Remove “Kitchen”"]
+        XCTAssertTrue(remove.waitForExistence(timeout: 3))
+        remove.tap()
+        XCTAssertTrue(app.staticTexts["NOTHING TO TUNE"].waitForExistence(timeout: 3) || app.staticTexts["Nothing to tune"].exists)
+        app.terminate()
+        app.launch()
+        XCTAssertFalse(app.buttons["channel-Test Two"].waitForExistence(timeout: 5))
+    }
+
+    func testAboutShowsTheVersionAndNoUpdater() {
+        app.launch()
+        XCTAssertTrue(app.buttons["channel-Test One"].waitForExistence(timeout: 15))
+        app.buttons["playlist-menu"].firstMatch.tap()
+        app.buttons["About ONAIR"].tap()
+        XCTAssertTrue(app.staticTexts["version"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["version"].label.hasPrefix("v0."))
+        XCTAssertFalse(app.buttons["Update"].exists)
+        screenshot("about")
+        app.buttons["about-done"].tap()
+    }
+}

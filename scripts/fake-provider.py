@@ -21,9 +21,23 @@ class H(http.server.BaseHTTPRequestHandler):
             out = "#EXTM3U\n" + "".join(f'#EXTINF:-1 tvg-id="{i}" tvg-name="{n}" group-title="TEST",{n}\n{u}\n' for n, i, u in STREAMS)
             self.send(out, "audio/x-mpegurl")
         elif p == "/player_api.php":
-            self.send(json.dumps({"user_info": {"auth": 1, "active_cons": "0", "max_connections": "1", "status": "Active"}, "server_info": {}}), "application/json")
+            action = dict(x.split("=", 1) for x in self.path.split("?", 1)[-1].split("&") if "=" in x).get("action")
+            if action == "get_live_categories":
+                self.send(json.dumps([{"category_id": "1", "category_name": "TEST"}]), "application/json")
+            elif action == "get_live_streams":
+                self.send(json.dumps([{"stream_id": k + 1, "name": n, "category_id": "1", "epg_channel_id": i}
+                                      for k, (n, i, u) in enumerate(STREAMS)]), "application/json")
+            else:
+                self.send(json.dumps({"user_info": {"auth": 1, "active_cons": "0", "max_connections": "1", "status": "Active"}, "server_info": {}}), "application/json")
+        elif p.startswith("/live/"):
+            # Xtream stream links redirect to the real test stream, like providers' session URLs.
+            try:
+                k = int(p.rsplit("/", 1)[-1].split(".")[0]) - 1
+                self.send_response(302); self.send_header("Location", STREAMS[k][2]); self.end_headers()
+            except (ValueError, IndexError):
+                self.send_response(404); self.end_headers()
         elif p == "/xmltv.php":
-            now = START
+            now = datetime.datetime.now(datetime.timezone.utc)   # programmes always around now
             progs = ""
             for n, i, u in STREAMS:
                 a = now - datetime.timedelta(minutes=30); b = now + datetime.timedelta(seconds=75); c = b + datetime.timedelta(minutes=45)

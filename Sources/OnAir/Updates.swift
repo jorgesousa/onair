@@ -14,7 +14,6 @@ final class UpdateChecker {
     static let repo = "jorgesousa/onair"
     static let repoPage = URL(string: "https://github.com/\(repo)")!
     static let issuesPage = repoPage.appendingPathComponent("issues")
-    static let suggestListPage = URL(string: "https://github.com/\(repo)/issues/new?title=Free%20list%3A%20&labels=free-list&body=Name%3A%0ALink%3A%0AWhat%20it%20has%3A%0AWhy%20it%27s%20free%20and%20legal%3A")!
 
     let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
     var available: Release?

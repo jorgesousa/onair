@@ -15,6 +15,7 @@ struct PadRail: View {
     let onAdd: () -> Void
     let onAbout: () -> Void
     @FocusState private var searchFocused: Bool
+    @AppStorage(PadSession.autoPiPKey) private var autoPiP = true
 
     private var visible: [Channel] { store.items(for: filter, search: search) }
 
@@ -80,6 +81,7 @@ struct PadRail: View {
             Button("Add playlist…", action: onAdd)
             Button("Reload") { Task { await store.reload() } }
             Toggle("Compact list", isOn: $compact)
+            Toggle("Picture in Picture when you leave", isOn: $autoPiP)
             Button("About ONAIR", action: onAbout)
             if let p = store.selectedPlaylist {
                 Button("Remove “\(p.name)”", role: .destructive) { store.remove(p) }

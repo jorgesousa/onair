@@ -27,3 +27,17 @@ enum FreeLists {
         .init(id: "everything", name: "Everything", detail: "All of iptv-org: over 11,000 channels", source: "iptv-org", url: org + "index.m3u"),
     ]
 }
+
+extension FreeList {
+    /// Where to suggest another free, legal list (a GitHub issue on the ONAIR repo).
+    static let suggestPage = URL(string: "https://github.com/jorgesousa/onair/issues/new?title=Free%20list%3A%20&labels=free-list&body=Name%3A%0ALink%3A%0AWhat%20it%20has%3A%0AWhy%20it%27s%20free%20and%20legal%3A")!
+}
+
+/// Minimum size for things you press: a fingertip on iPad, the Mac's own sizes on the Mac.
+enum Platform {
+    #if os(iOS)
+    static let touch: CGFloat = 44
+    #else
+    static let touch: CGFloat = 0
+    #endif
+}

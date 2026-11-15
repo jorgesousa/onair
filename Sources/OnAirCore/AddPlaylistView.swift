@@ -36,6 +36,7 @@ struct AddPlaylistView: View {
                         Text(k.rawValue.uppercased()).font(Brand.display(10, .bold)).tracking(1)
                             .foregroundStyle(kind == k ? Brand.ink : Brand.dim)
                             .padding(.horizontal, 14).padding(.vertical, 9)
+                            .frame(minHeight: Platform.touch)
                             .background(kind == k ? Brand.signal : Brand.raised, in: .capsule)
                     }
                     .buttonStyle(.plain)
@@ -74,12 +75,14 @@ struct AddPlaylistView: View {
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
+                    .frame(minWidth: Platform.touch, minHeight: Platform.touch)
                     .buttonStyle(.plain).font(Brand.display(10, .bold)).tracking(1).foregroundStyle(Brand.dim)
                     .keyboardShortcut(.cancelAction)
                 if kind != .free {
                 Button(action: add) {
                     Text("ADD").font(Brand.display(11, .bold)).tracking(1).foregroundStyle(Brand.ink)
                         .padding(.horizontal, 22).padding(.vertical, 12)
+                        .frame(minHeight: Platform.touch)
                         .background(Brand.signal.opacity(valid ? 1 : 0.35), in: .capsule)
                         .animation(Motion.quick, value: valid)
                 }
@@ -95,7 +98,7 @@ struct AddPlaylistView: View {
         .background(Brand.ink)
         .onAppear { if store.playlists.isEmpty { kind = .free } }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.plainText, .data]) { result in
-            if case .success(let url) = result { location = url.path }
+            if case .success(let url) = result { location = PlaylistFiles.location(forPicked: url) }
         }
     }
 
@@ -123,7 +126,7 @@ struct AddPlaylistView: View {
                 .font(.system(size: 11)).foregroundStyle(Brand.faint).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 6) {
                 Text("Know another free, legal list?").font(.system(size: 11)).foregroundStyle(Brand.dim)
-                Button { openURL(UpdateChecker.suggestListPage) } label: {
+                Button { openURL(FreeList.suggestPage) } label: {
                     HStack(spacing: 3) {
                         Text("Suggest a list").font(.system(size: 11, weight: .bold))
                         Image(systemName: "arrow.up.right").font(.system(size: 8, weight: .bold))
@@ -161,6 +164,7 @@ private struct Field: View {
                 else { TextField("", text: $text, prompt: Text(prompt).foregroundStyle(Brand.faint)) }
             }
             .textFieldStyle(.plain).font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.paper)
+            .accessibilityIdentifier("field-\(label)")
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
         .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
@@ -191,6 +195,7 @@ private struct FreeListRow: View {
                     .background(hover ? Brand.paper : (added ? Brand.paper.opacity(0.14) : Brand.raised), in: .circle)
             }
             .padding(.horizontal, 12).padding(.vertical, 9)
+            .frame(minHeight: Platform.touch)
             .background(hover ? Brand.raised : .clear, in: .rect(cornerRadius: 12, style: .continuous))
             .contentShape(.rect)
         }
