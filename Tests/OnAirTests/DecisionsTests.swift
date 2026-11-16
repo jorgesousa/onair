@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 import Testing
 @testable import OnAir
@@ -90,5 +91,81 @@ import Testing
         #expect(Zap.move(from: "a", in: ["a"], by: 1) == nil)
         #expect(Zap.move(from: "a", in: ["a", "b"], by: 1) == "b")
         #expect(Zap.move(from: nil, in: ["a"], by: 1) == "a")
+    }
+}
+
+@Suite struct FailureTests {
+    @Test func providerRefusalsAreRefused() {
+        #expect(PlaybackFailure.of(NSError(domain: NSURLErrorDomain, code: 403)) == .refused)
+        let nested = NSError(domain: "AVFoundationErrorDomain", code: -11800,
+                             userInfo: [NSUnderlyingErrorKey: NSError(domain: "CoreMediaErrorDomain", code: -12660)])
+        #expect(PlaybackFailure.of(nested) == .refused)
+    }
+
+    @Test func formatsTheDeviceCannotDecodeAreUnsupported() {
+        let e = NSError(domain: "AVFoundationErrorDomain", code: -11800,
+                        userInfo: [NSUnderlyingErrorKey: NSError(domain: "CoreMediaErrorDomain", code: -12863)])
+        #expect(PlaybackFailure.of(e) == .unsupported)
+    }
+
+    @Test func everythingElseIsWorthRetrying() {
+        #expect(PlaybackFailure.of(NSError(domain: NSURLErrorDomain, code: -1009)) == .other)
+        #expect(PlaybackFailure.of(nil) == .other)
+    }
+
+    @Test func afterARefusalTheAppWaitsTwoMinutesBeforeTryingByItself() {
+        let t0 = Date(timeIntervalSince1970: 1000)
+        #expect(Retry.holdAfterRefusal == 120)
+        #expect(Retry.remaining(until: t0.addingTimeInterval(120), at: t0) == 120)
+        #expect(Retry.remaining(until: t0, at: t0.addingTimeInterval(5)) == 0)
+        #expect(Retry.remaining(until: nil, at: t0) == 0)
+    }
+}
+
+@Suite struct FullScreenTurnTests {
+    @Test func theButtonHoldsTheTurnUntilThePhoneIsHeldThatWay() {
+        #expect(FullScreenTurn.release(lockedTo: .landscape, held: .portrait) == false)
+        #expect(FullScreenTurn.release(lockedTo: .landscape, held: nil) == false)
+        #expect(FullScreenTurn.release(lockedTo: .landscape, held: .landscape) == true)
+        #expect(FullScreenTurn.release(lockedTo: .portrait, held: .portrait) == true)
+        #expect(FullScreenTurn.release(lockedTo: nil, held: .landscape) == false)
+    }
+
+    @Test func onlyAPhoneTurnsForFullScreen() {
+        #expect(FullScreenTurn.target(phone: true, wide: false) == .landscape)
+        #expect(FullScreenTurn.target(phone: true, wide: true) == .portrait)
+        #expect(FullScreenTurn.target(phone: false, wide: false) == nil)
+    }
+}
+
+@Suite struct OffAirTests {
+    @Test func aChannelThatNeverShowsAnythingIsOffAirAfterThreeTriesAndTwentySeconds() {
+        #expect(OffAir.giveUp(failures: 3, seconds: 20, everPlayed: false, refused: false))
+        #expect(!OffAir.giveUp(failures: 2, seconds: 60, everPlayed: false, refused: false))
+        // Dispatcharr's brief "busy" after a channel change is not "off air".
+        #expect(!OffAir.giveUp(failures: 5, seconds: 12, everPlayed: false, refused: false))
+    }
+
+    @Test func aChannelThatPlayedOrWasRefusedIsNotOffAir() {
+        #expect(!OffAir.giveUp(failures: 9, seconds: 90, everPlayed: true, refused: false))
+        #expect(!OffAir.giveUp(failures: 9, seconds: 90, everPlayed: false, refused: true))
+    }
+}
+
+@Suite struct BusyTests {
+    @Test func dispatcharrsBusyAndNotReadyAnswersAreBusy() {
+        let busy = NSError(domain: NSURLErrorDomain, code: -1008,
+                           userInfo: [NSUnderlyingErrorKey: NSError(domain: NSOSStatusErrorDomain, code: -16849)])
+        let notReady = NSError(domain: NSURLErrorDomain, code: -1008,
+                               userInfo: [NSUnderlyingErrorKey: NSError(domain: NSOSStatusErrorDomain, code: -16847)])
+        #expect(PlaybackFailure.of(busy) == .busy)
+        #expect(PlaybackFailure.of(notReady) == .busy)
+        let missing = NSError(domain: NSURLErrorDomain, code: -1100)
+        #expect(PlaybackFailure.of(missing) == .other)
+    }
+
+    @Test func whileBusyOffAirWaitsLonger() {
+        #expect(!OffAir.giveUp(failures: 8, seconds: 30, everPlayed: false, refused: false, busy: true))
+        #expect(OffAir.giveUp(failures: 8, seconds: 45, everPlayed: false, refused: false, busy: true))
     }
 }

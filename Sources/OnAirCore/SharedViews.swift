@@ -86,12 +86,38 @@ struct SoundOnlyCard: View {
             Image(systemName: "speaker.wave.2.fill")
                 .font(.system(size: 30, weight: .semibold)).foregroundStyle(Brand.paper)
             Text("SOUND ONLY").font(Brand.display(30)).foregroundStyle(Brand.paper)
-            Text("This channel isn't sending a picture this Mac can show. Keep listening, or pick another channel.")
+            Text("This channel isn't sending a picture this \(Platform.device) can show. Keep listening, or pick another channel.")
                 .font(.system(size: 13, weight: .medium)).foregroundStyle(Brand.dim)
                 .multilineTextAlignment(.center).frame(maxWidth: 360)
             Bars().frame(width: 160, height: 5).clipShape(.capsule)
         }
         .padding(32)
+    }
+}
+
+/// The yellow pill on the picture: reconnecting, waiting for the provider (with a countdown
+/// to the app's own next try), or why a channel won't play.
+struct StageNotice: View {
+    let text: String
+    var until: Date? = nil
+    var size: CGFloat = 15
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "dot.radiowaves.left.and.right")
+            Group {
+                if let until, until > .now {
+                    Text("\(text) · ") + Text(timerInterval: Date.now...until, countsDown: true).monospacedDigit()
+                } else {
+                    Text(text)
+                }
+            }
+            .font(.system(size: size, weight: .semibold))
+            .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(Brand.ink)
+        .padding(.horizontal, size + 1).padding(.vertical, size * 0.72)
+        .background(Brand.signal, in: .capsule)
     }
 }
 
@@ -130,6 +156,19 @@ struct Hairline: View {
     }
 }
 
+extension Programme {
+    /// "NEXT 22:00": the time part of the NEXT line, in mono wherever it shows.
+    var nextStamp: String { "NEXT \(start.formatted(date: .omitted, time: .shortened))" }
+    /// The whole line as plain text (tooltips, VoiceOver).
+    var nextLine: String { "\(nextStamp) · \(title)" }
+    /// The line as the screen sets it: the stamp in mono, the title in the surrounding font.
+    func nextStyled(stamp size: CGFloat, title font: Font) -> AttributedString {
+        var a = AttributedString(nextStamp); a.font = Brand.mono(size)
+        var b = AttributedString(" · \(title)"); b.font = font
+        return a + b
+    }
+}
+
 struct NowBar: View {
     let channel: Channel
     let now: Programme?
@@ -142,6 +181,9 @@ struct NowBar: View {
     var floating = false
     /// iPad portrait: tight vertical spacing (the channel card on the picture carries the rest).
     var compact = false
+    /// Compact on a phone-width screen: the title gets the whole first row; the times move
+    /// beside the progress line and NEXT is left out (the card on the picture says what's on).
+    var narrow = false
     let toggleFavourite: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
 
@@ -149,9 +191,10 @@ struct NowBar: View {
         Group {
             if compact { compactBody } else { fullBody }
         }
-        .animation(reduce ? Motion.fade : .easeOut(duration: 0.26), value: now?.title)
-        .id(channel.id)
-        .transition(reduce ? .opacity : .asymmetric(insertion: .offset(y: 18).combined(with: .opacity), removal: .opacity))
+        // Zapping: the bar stays put and only its text changes. The title comes up from
+        // below (the same push as a programme rolling over); everything else blur-fades.
+        .animation(reduce ? Motion.fade : Motion.swap, value: now?.title)
+        .animation(reduce ? Motion.fade : Motion.swap, value: channel.id)
         .padding(.horizontal, compact ? 20 : 24)
         .padding(.top, compact ? 12 : (floating ? 40 : 18)).padding(.bottom, compact ? 12 : 18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -163,8 +206,10 @@ struct NowBar: View {
                 Brand.ink.overlay(alignment: .top) { Rectangle().fill(Brand.line).frame(height: 1) }
             }
         }
-        .animation(reduce ? Motion.fade : Motion.enter, value: channel.id)
     }
+
+    private var swapOut: AnyTransition { reduce ? .opacity : .blurFade }
+    private var titleIn: AnyTransition { reduce ? .opacity : .push(from: .bottom).combined(with: .blurFade) }
 
     private var livePill: some View {
         HStack(spacing: 7) {
@@ -187,25 +232,32 @@ struct NowBar: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 12) {
                 livePill
-                Marquee(text: now?.title ?? channel.displayName, font: Brand.display(20, .heavy))
-                    .id(now?.title ?? channel.id)
-                    .transition(reduce ? .opacity : .push(from: .bottom))
+                // The title travels a short way inside its own clip, so it never crosses the pill.
+                ZStack(alignment: .leading) {
+                    Marquee(text: now?.title ?? channel.displayName, font: Brand.display(narrow ? 18 : 20, .heavy))
+                        .id("\(channel.id)|\(now?.title ?? "")")
+                        .transition(titleIn)
+                }
+                .clipped()
                 Spacer(minLength: 8)
-                if let now {
+                if let now, !narrow {
                     Text(now.span).font(Brand.mono(13)).foregroundStyle(Brand.dim)
                         .contentTransition(.numericText()).fixedSize()
                 }
-                star
+                star.accessibilityIdentifier("save")
             }
-            .clipped()
             if let now {
-                HStack(spacing: 16) {
-                    BarsProgress(value: now.progress(at: clock), height: 4).frame(maxWidth: 260)
-                    Spacer(minLength: 0)
-                    if let next {
-                        Text("NEXT \(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
-                            .font(Brand.mono(13)).foregroundStyle(Brand.faint).lineLimit(1)
-                            .id(next.title).transition(.opacity)
+                HStack(spacing: narrow ? 12 : 16) {
+                    if narrow {
+                        Text(now.span).font(Brand.mono(12)).foregroundStyle(Brand.dim)
+                            .contentTransition(.numericText()).fixedSize()
+                    }
+                    BarsProgress(value: now.progress(at: clock), height: 4).frame(maxWidth: narrow ? .infinity : 260)
+                    if !narrow { Spacer(minLength: 0) }
+                    if let next, !narrow {
+                        Text(next.nextStyled(stamp: 13, title: .system(size: 13, weight: .medium)))
+                            .foregroundStyle(Brand.faint).lineLimit(1)
+                            .id("\(channel.id)|\(next.title)").transition(swapOut)
                     }
                 }
             }
@@ -223,6 +275,7 @@ struct NowBar: View {
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(Brand.live, in: .capsule)
                 Text(channel.displayName.uppercased()).font(Brand.display(11, .semibold)).tracking(1).foregroundStyle(Brand.dim)
+                    .id(channel.id).transition(swapOut)
                 Spacer()
                 if let accessory { accessory }
                 IconButton(symbol: favourite ? "star.fill" : "star", help: favourite ? "Remove from saved" : "Save",
@@ -233,8 +286,8 @@ struct NowBar: View {
                     // The programme rolls over: the old title leaves upward, the new one comes from below.
                     Text(now.title).font(Brand.display(26, .heavy)).foregroundStyle(Brand.paper)
                         .lineLimit(1).minimumScaleFactor(0.6)
-                        .id(now.title)
-                        .transition(reduce ? .opacity : .push(from: .bottom))
+                        .id("\(channel.id)|\(now.title)")
+                        .transition(titleIn)
                     Spacer()
                     Text(now.span).font(Brand.mono(12)).foregroundStyle(Brand.dim)
                         .contentTransition(.numericText())
@@ -244,9 +297,9 @@ struct NowBar: View {
                     BarsProgress(value: now.progress(at: clock), height: 4).frame(maxWidth: 320)
                     Spacer(minLength: 0)
                     if let next {
-                        Text("NEXT \(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
-                            .font(Brand.mono(12)).foregroundStyle(Brand.faint).lineLimit(1)
-                            .id(next.title).transition(.opacity)
+                        Text(next.nextStyled(stamp: 12, title: .system(size: 12, weight: .medium)))
+                            .foregroundStyle(Brand.faint).lineLimit(1)
+                            .id("\(channel.id)|\(next.title)").transition(swapOut)
                     }
                 }
             }
@@ -264,12 +317,20 @@ struct ChannelRow: View {
     let clock: Date
     let motion: Namespace.ID
     var compact = false
+    /// iPad: every row the same height. A channel with no guide keeps the programme line's space.
+    var uniform = false
+    /// The guide is on its way: a placeholder line where the programme will appear.
+    var guideLoading = false
     @State private var hover = false
+    @State private var pulse = false
+
+    /// Placeholders of different lengths, so a loading list doesn't look like a barcode.
+    private var placeholderWidth: CGFloat { 70 + CGFloat(abs(channel.id.hashValue) % 90) }
 
     /// What's on and what's next, on hover. A tooltip, so the row never changes height under the pointer.
     private var guideHelp: String {
         [now.map { "Now: \($0.title)" },
-         next.map { "Next: \($0.start.formatted(date: .omitted, time: .shortened)) \($0.title)" }]
+         next.map(\.nextLine)]
             .compactMap { $0 }.joined(separator: "\n")
     }
 
@@ -293,25 +354,59 @@ struct ChannelRow: View {
                     }
                 }
                 if let now, !compact {
-                    // On hover the line shows what's next, like the now bar's NEXT line. Same height, so nothing moves.
+                    // On hover the line shows what's next, in the row's own type (same font and size as
+                    // what's on, so nothing changes under the pointer). Too long: it glides, as the now
+                    // bar's titles do — the row you're pointing at is the one you're reading.
                     Group {
                         if hover, let next {
-                            Text("NEXT \(next.start.formatted(date: .omitted, time: .shortened))  \(next.title)")
-                                .font(Brand.mono(11))
+                            Marquee(next.nextStyled(stamp: 11, title: .system(size: 12, weight: .medium)),
+                                    font: .system(size: 12, weight: .medium), color: sub)
                         } else {
                             Text(now.title).font(.system(size: 12, weight: .medium))
                         }
                     }
                     .foregroundStyle(sub).lineLimit(1)
                     .frame(height: 15, alignment: .leading)
-                    Hairline(value: now.progress(at: clock), on: onAir ? Brand.ink : Brand.paper.opacity(0.7),
-                             off: onAir ? Brand.ink.opacity(0.15) : Brand.line)
+                    if uniform {
+                        // iPad: drawn without measuring the layout (cheap enough for a fast flick on older iPads).
+                        Capsule().fill(onAir ? Brand.ink.opacity(0.15) : Brand.line)
+                            .frame(maxWidth: 220).frame(height: 2)
+                            .overlay(alignment: .leading) {
+                                Rectangle().fill(onAir ? Brand.ink : Brand.paper.opacity(0.7))
+                                    .scaleEffect(x: max(0.01, now.progress(at: clock)), anchor: .leading)
+                            }
+                            .clipShape(.capsule)
+                    } else {
+                        Hairline(value: now.progress(at: clock), on: onAir ? Brand.ink : Brand.paper.opacity(0.7),
+                                 off: onAir ? Brand.ink.opacity(0.15) : Brand.line)
+                    }
+                } else if uniform, !compact {
+                    Group {
+                        if guideLoading {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(sub.opacity(pulse ? 0.22 : 0.1))
+                                .frame(width: placeholderWidth, height: 9)
+                                .onAppear { withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true } }
+                                .onDisappear { pulse = false }
+                                .transition(.opacity)
+                        }
+                    }
+                    .frame(height: 15, alignment: .leading)   // the programme line
+                    Color.clear.frame(height: 2)              // the hairline
                 }
             }
+            .animation(uniform ? .easeOut(duration: 0.3) : nil, value: now?.title)
+            .animation(uniform ? .easeOut(duration: 0.3) : nil, value: guideLoading)
             Spacer(minLength: 8)
-            AsyncImage(url: channel.logo) { img in
-                img.resizable().scaledToFit()
-            } placeholder: { Color.clear }
+            Group {
+                if uniform {
+                    CachedLogo(url: channel.logo)   // iPad: logos survive scrolling
+                } else {
+                    AsyncImage(url: channel.logo) { img in
+                        img.resizable().scaledToFit()
+                    } placeholder: { Color.clear }
+                }
+            }
             .frame(width: 34, height: 22)
             .saturation(onAir || hover ? 1 : 0)
             .opacity(onAir || hover ? 1 : 0.55)

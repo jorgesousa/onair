@@ -1,25 +1,40 @@
 # ONAIR
 
-<a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">
-  <img src="docs/onair-poster.jpg" width="860" alt="ONAIR, an IPTV player for macOS. Click to watch the 23-second video.">
-</a>
-
-<sub>▶ <a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">Watch with sound</a> · 23 seconds</sub>
+<img src="docs/onair.gif" width="860" alt="ONAIR on a Mac, an iPad and an iPhone: each lands on a beat, then all three tune to the same channel">
 
 **Just TV.** No ads. No watermarks. No accounts. No tracking.
 **Free and open source. Built like it isn't.**
 
 Free software shouldn't look or feel worse than paid software. ONAIR is built to the same standard as the best paid apps on the Mac, and the code is open so anyone can check every promise. See [docs/BRAND.md](docs/BRAND.md).
 
-ONAIR is an IPTV player for macOS, written in SwiftUI. Add an M3U playlist (a link or a file) or an Xtream Codes account. Channels are numbered like a tuner, and each one shows what's on now. Zap with the arrow keys and press Return for full screen.
+ONAIR is an IPTV player for Mac, iPad and iPhone, written in SwiftUI. Add an M3U playlist (a link or a file) or an Xtream Codes account. Channels are numbered like a tuner, and each one shows what's on now. On the Mac, zap with the arrow keys and press Return for full screen. On the iPad and iPhone, tap a channel and swipe up or down on the picture to zap.
 
 ONAIR ships with no channels. Use only playlists you're entitled to.
 
 ### Free lists
 
-The add sheet has a **Free** tab with one-click public playlists from [iptv-org](https://github.com/iptv-org/iptv) and [Free-TV/IPTV](https://github.com/Free-TV/IPTV). Both projects only list streams that are free and public: Portugal, Portuguese-language, Free-TV, News, Sports, Movies, Music, Kids, Documentary, and all of iptv-org (over 11,000 channels). They're community lists, so some channels are offline or geo-blocked at any given time, and they carry no programme guide. Edit `Sources/OnAir/FreeLists.swift` to change them.
+The add sheet has a **Free** tab with one-click public playlists from [iptv-org](https://github.com/iptv-org/iptv) and [Free-TV/IPTV](https://github.com/Free-TV/IPTV). Both projects only list streams that are free and public: Portugal, Portuguese-language, Free-TV, News, Sports, Movies, Music, Kids, Documentary, and all of iptv-org (over 11,000 channels). They're community lists, so some channels are offline or geo-blocked at any given time, and they carry no programme guide. Edit `Sources/OnAirCore/FreeLists.swift` to change them.
 
 Know another free, legal list? [Suggest it](https://github.com/jorgesousa/onair/issues/new?title=Free%20list%3A%20&labels=free-list) — there's a link to the same form in the app.
+
+### iPad and iPhone
+
+The same app, the same lists, the same look, built from the same code as the Mac (`Sources/OnAirCore`).
+
+- **Portrait:** the picture on top, what's on now under it, the channel list below.
+- **Landscape:** Watch mode. The picture fills the screen, swipe up or down to change channel, and the list peeks in from the left edge.
+- **iPhone:** the full-screen button turns the picture to landscape, like the TV app.
+- AirPlay and Picture in Picture. The screen stays awake while you watch, and the provider connection is let go when nobody is watching, with RESUME one tap away.
+
+### One TV, several screens
+
+Run [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) at home and add its playlist (`http://<dispatcharr>:9191/output/m3u?output_format=hls`) to every ONAIR in the house. Change the channel on the iPhone and the Mac and the iPad follow, over the local network (Bonjour). Dispatcharr shares one provider connection between all of them, so a one-connection subscription can play on several screens at once, one channel at a time.
+
+<a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">
+  <img src="docs/onair-poster.jpg" width="860" alt="ONAIR on Mac, iPad and iPhone. Click to watch the 23-second video.">
+</a>
+
+▶ <a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">Watch the 23-second video (with sound)</a>
 
 ## Install
 
@@ -30,6 +45,8 @@ scripts/build-app.sh --install
 ```
 
 With Homebrew, once the tap is published: `brew install jorgesousa/tap/onair`.
+
+iPad and iPhone (iOS 17+): open `iPad/OnAir.xcodeproj` in Xcode, pick your device and press Run. It isn't on the App Store yet.
 
 ## Updates
 
@@ -55,6 +72,7 @@ A Homebrew install compares with the version the tap serves (what `brew upgrade`
 - Many providers answer a channel link with a redirect to a session URL. ONAIR resolves it once and plays the session URL: re-requesting the original link on every playlist refresh (what AVFoundation does) opens a new session each time and stalls the stream after ~30 s.
 - A watchdog reconnects on its own when the picture stops for more than a few seconds, the stream fails or ends, or the Mac wakes from sleep, waiting longer after each try (1 s up to 30 s) and never giving up while the channel is picked.
 - Most accounts allow one connection. Switching closes the old stream first and retries a refused one before giving up.
+- A channel that never shows a picture after 3 tries and 20 seconds says OFF AIR instead of reconnecting forever; pick it again to retry. A channel whose video the device can't decode says CAN'T PLAY.
 - Passwords are stored in the Keychain. Everything else is stored in the app's preferences.
 - ONAIR talks to your provider and, once a day, asks GitHub for the latest release number. That request carries nothing about you. Turn it off in About ONAIR → "Check for updates automatically".
 - Films and series are built but hidden (`ContentView.showsLibraries`).

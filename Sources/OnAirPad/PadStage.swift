@@ -6,6 +6,9 @@ struct PadStage: View {
     @Environment(PadSession.self) private var session
     @Environment(\.accessibilityReduceMotion) private var reduce
     var fill = false
+    /// A pick from the side list in landscape: the stream is already starting, but the
+    /// "tuning in" card waits for the list to start leaving (about 0.12 s).
+    var holdTuning = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -18,21 +21,20 @@ struct PadStage: View {
                 if session.pipActive {
                     InPictureInPictureView(channel: c).transition(.opacity)
                 }
-                TuningOverlay(channel: c, tuning: playback.isTuning)
+                TuningOverlay(channel: c, tuning: playback.isTuning && !holdTuning)
                 if playback.soundOnly, !playback.isTuning {
                     SoundOnlyCard()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .allowsHitTesting(false)
                         .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 }
-                if let f = playback.failed {
-                    HStack(spacing: 10) {
-                        Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(Brand.ink)
-                        Text(f).font(.system(size: 15, weight: .semibold)).foregroundStyle(Brand.ink)
-                    }
-                    .padding(.horizontal, 16).padding(.vertical, 11)
-                    .background(Brand.signal, in: .capsule)
-                    .frame(maxWidth: .infinity)
+                if playback.offAir {
+                    OffAirView(channel: c).transition(.opacity)
+                } else if playback.cantPlay {
+                    CantPlayView(channel: c).transition(.opacity)
+                } else if let f = playback.failed {
+                    StageNotice(text: f, until: playback.holdUntil)
+                        .frame(maxWidth: .infinity)
                     .padding(24)
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -40,6 +42,8 @@ struct PadStage: View {
         }
         .clipped()
         .animation(Motion.if(reduce, Motion.fade), value: playback.isTuning)
+        .animation(Motion.if(reduce, Motion.fade), value: playback.offAir)
+        .animation(Motion.if(reduce, Motion.fade), value: playback.cantPlay)
         .animation(Motion.if(reduce, Motion.enter), value: playback.failed)
         .animation(Motion.if(reduce, Motion.enter), value: playback.soundOnly)
         .animation(Motion.if(reduce, Motion.fade), value: session.pipActive)
@@ -56,7 +60,7 @@ struct ResumeCard: View {
             Button(action: resume) {
                 HStack(spacing: 12) {
                     Image(systemName: "play.fill").font(.system(size: 18, weight: .bold))
-                    Text("Resume \(channel.displayName)").font(Brand.display(20)).lineLimit(1)
+                    Text("RESUME \(channel.displayName.uppercased())").font(Brand.display(20)).lineLimit(1).minimumScaleFactor(0.6)
                 }
                 .foregroundStyle(Brand.ink)
                 .padding(.horizontal, 28).frame(minHeight: 60)

@@ -30,7 +30,7 @@ struct Episode: Identifiable, Hashable {
     let url: URL
 }
 
-struct Programme: Hashable, Sendable {
+struct Programme: Hashable, Sendable, Codable {
     let title: String
     let start: Date
     let end: Date

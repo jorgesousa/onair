@@ -14,6 +14,20 @@ final class PlaybackController {
     /// Playing, but no picture has arrived: the channel sends sound only, or a video format the
     /// Mac can't decode. Shown on the stage instead of a black screen.
     var soundOnly = false
+    /// The channel isn't broadcasting: the stage shows the off-air card instead of a notice.
+    var offAir = false
+    /// This device can't decode the channel's video: the stage shows the can't-play card.
+    var cantPlay = false
+    /// After a refusal: when the app will try again by itself (shown as a countdown).
+    /// A tap from the viewer doesn't wait for it.
+    var holdUntil: Date?
+    /// For "off air": since this channel was picked, did anything ever play, how many tries
+    /// failed, and when was it picked.
+    private var everPlayed = false
+    /// Dispatcharr said "busy" last time (still freeing the previous channel): retry every 2 s.
+    private var busy = false
+    private var failuresWithoutPicture = 0
+    private var pickedAt = Date()
     /// The channel `release()` stopped, for "resume".
     var lastStopped: Channel?
 
@@ -65,7 +79,8 @@ final class PlaybackController {
     /// Switching closes the old stream first and waits a moment before opening the new one:
     /// IPTV accounts usually allow one connection, and the server needs time to free it.
     func play(_ c: Channel) {
-        current = c; failed = nil; isTuning = true; attempt = 0; refused = false; soundOnly = false
+        current = c; failed = nil; isTuning = true; attempt = 0; refused = false; soundOnly = false; holdUntil = nil
+        everPlayed = false; failuresWithoutPicture = 0; pickedAt = .now; busy = false; offAir = false; cantPlay = false
         let hadStream = player.currentItem != nil
         stop()
         start(c, delay: hadStream ? 0.6 : 0, fresh: true)
@@ -75,7 +90,7 @@ final class PlaybackController {
     /// resumed with one tap. The session URL is kept: resuming reuses it when the provider allows.
     func release() {
         if let c = current { lastStopped = c }
-        current = nil; failed = nil; isTuning = false; soundOnly = false; attempt = 0
+        current = nil; failed = nil; isTuning = false; soundOnly = false; attempt = 0; holdUntil = nil; offAir = false; cantPlay = false
         stop()
     }
 
@@ -103,12 +118,43 @@ final class PlaybackController {
         task = Task { [weak self] in
             if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
             guard !Task.isCancelled else { return }
-            // Refused before? Wait until the provider has let go of the old session.
-            if let self, self.refused, let account = c.xtreamAccount {
-                self.failed = "Waiting for your provider to free the connection…"
-                await Self.waitForFreeSlot(account)
+            // Refused before? Open nothing until the provider has let go of the old session:
+            // every refused try counts as one more connection and keeps the slot full.
+            if let self, self.refused {
+                self.failed = "Waiting for your provider to free the connection"
+                await Self.waitForFreeSlot(c.xtreamAccount, until: self.holdUntil ?? .now)
                 guard !Task.isCancelled, gen == self.generation else { return }
+                self.holdUntil = nil
                 self.failed = "Reconnecting…"
+            }
+            // Dispatcharr: ask for the channel's HLS session ourselves, one request at a time, and
+            // hand the player the playlist. The player asking for the channel link itself makes
+            // several requests that Dispatcharr counts as viewers, drops as ghosts, and sometimes
+            // restarts the channel over. While it's still freeing the previous channel ("busy"),
+            // ask again every 2 s with the tuning card up.
+            if let self, Patience.firstPicture(c) > 15 {
+                while true {
+                    let answer = await Self.ask(c.url, headers: c.headers)
+                    guard !Task.isCancelled, gen == self.generation else { return }
+                    switch answer {
+                    case .playlist(let playlist):
+                        self.session = nil              // a session token, not worth reusing
+                        self.attach(c, url: playlist, gen: gen)
+                        return
+                    case .busy:
+                        self.busy = true
+                        self.failuresWithoutPicture += 1
+                        if OffAir.giveUp(failures: self.failuresWithoutPicture, seconds: Date.now.timeIntervalSince(self.pickedAt),
+                                         everPlayed: self.everPlayed, refused: false, busy: true) {
+                            self.goOffAir(); return
+                        }
+                        try? await Task.sleep(for: .seconds(2))
+                        guard !Task.isCancelled, gen == self.generation else { return }
+                    case .failed:
+                        self.attach(c, url: c.url, gen: gen)    // let the player try it the usual way
+                        return
+                    }
+                }
             }
             // Many providers answer a channel link with a redirect to a session URL. AVFoundation
             // keeps re-requesting the original link on every playlist refresh, which opens a new
@@ -120,18 +166,13 @@ final class PlaybackController {
         }
     }
 
-    /// Ask the provider how many connections it is counting; wait (up to 2 min) until one is free.
-    /// Some providers don't answer this (auth 0 on the API while streams still play): then give the
-    /// old session a few seconds to close and try, instead of waiting blind for two minutes.
-    nonisolated static func waitForFreeSlot(_ a: XtreamAccount) async {
-        for _ in 0..<24 {
-            guard let (active, max) = await a.connections() else {
-                try? await Task.sleep(for: .seconds(4))
-                return
-            }
-            if active < max { return }
-            try? await Task.sleep(for: .seconds(5))
-            if Task.isCancelled { return }
+    /// Wait until `until`, or sooner if the provider says a connection is free. Providers that
+    /// don't answer (auth 0 on the API while streams still play) get the whole wait.
+    nonisolated static func waitForFreeSlot(_ a: XtreamAccount?, until: Date) async {
+        while !Task.isCancelled, Retry.remaining(until: until, at: .now) > 0 {
+            if let a, let (active, max) = await a.connections(), active < max { return }
+            let left = Retry.remaining(until: until, at: .now)
+            try? await Task.sleep(for: .seconds(min(5, left)))
         }
     }
 
@@ -167,7 +208,7 @@ final class PlaybackController {
         case .playing:
             stuckSince = nil
             if playingSince == nil { playingSince = .now }
-            refused = false
+            refused = false; holdUntil = nil; everPlayed = true
             isTuning = false
             if failed == "Reconnecting…" || failed?.hasPrefix("Waiting for your provider") == true { failed = nil }
         case .waitingToPlayAtSpecifiedRate:
@@ -175,7 +216,9 @@ final class PlaybackController {
             isTuning = failed == nil || failed == "Reconnecting…"
         default:
             stuckSince = nil      // paused by the viewer: not a problem
-            isTuning = false
+            // No item means between two attempts (the old one taken down, the next one coming):
+            // still tuning, so the "tuning in" card stays up instead of flashing to black.
+            if player.currentItem != nil || failed != nil { isTuning = false }
         }
     }
 
@@ -197,21 +240,33 @@ final class PlaybackController {
             if Date.now.timeIntervalSince(lastTimeMoved) > 10 { reconnectNow(reason: "frozen") }
             return
         }
-        if let since = stuckSince, Date.now.timeIntervalSince(since) > (playingSince == nil ? 15 : 8) {
+        if let since = stuckSince, Date.now.timeIntervalSince(since) > (playingSince == nil ? Patience.firstPicture(current) : 8) {
             reconnectNow(reason: "stalled")
         }
     }
 
     private func problem(gen: Int, error: Error?, ended: Bool = false) {
         guard gen == generation, current != nil else { return }
-        if let error, Self.isDenied(error) {
+        switch PlaybackFailure.of(error) {
+        case .unsupported:
+            // Retrying won't help and would only hold the provider's connection: stop and say so.
+            stop()
+            isTuning = false; soundOnly = false
+            failed = CantPlay.line
+            cantPlay = true
+            return
+        case .refused:
             // The session is no good any more, and opening another one straight away is what
-            // gets an account over its connection limit. Wait for a free slot, then a fresh session.
+            // gets an account over its connection limit. Hold off, then one fresh session.
             refused = true
             session = nil
-            if attempt >= 6 {
-                failed = "The server refused the stream. The account may be in use on another device. Retrying…"
-            }
+            holdUntil = .now.addingTimeInterval(Retry.holdAfterRefusal)
+        case .busy:
+            // Only Dispatcharr gets quick retries: at the provider itself each try could count as
+            // one more connection, so a direct channel keeps the usual back-off.
+            busy = Patience.firstPicture(current) > 15
+        case .other:
+            busy = false
         }
         reconnectNow(reason: ended ? "ended" : "failed")
     }
@@ -233,14 +288,50 @@ final class PlaybackController {
             player.play()
             return
         }
+        // Never showed a thing after a few tries: the channel isn't broadcasting. Say so and stop.
+        if !everPlayed, reason != "wake" { failuresWithoutPicture += 1 }
+        if OffAir.giveUp(failures: failuresWithoutPicture, seconds: Date.now.timeIntervalSince(pickedAt),
+                         everPlayed: everPlayed, refused: refused, busy: busy) {
+            goOffAir()
+            return
+        }
         let waits: [Double] = [1, 1, 3, 8, 15, 30]
-        let wait = waits[min(attempt, waits.count - 1)]
+        let wait = busy ? 2 : waits[min(attempt, waits.count - 1)]
         attempt += 1
-        if failed == nil, attempt > 2 { failed = "Reconnecting…" }
+        // Dispatcharr still freeing the previous channel is part of tuning in: the "tuning in"
+        // card stays up, with no notice over it.
+        if !busy, failed == nil, attempt > 2 { failed = "Reconnecting…" }
         isTuning = true
         stop()
         let fresh = refused || reason == "wake" || attempt > 3 || session?.channel != c.id
-        start(c, delay: reason == "wake" ? 1 : (refused ? max(wait, 5) : wait), fresh: fresh)
+        // Refused: the wait is the hold in `start`, not this back-off.
+        start(c, delay: reason == "wake" ? 1 : (refused ? 0 : wait), fresh: fresh)
+    }
+
+    private func goOffAir() {
+        stop()
+        isTuning = false; soundOnly = false
+        failed = OffAir.message
+        offAir = true
+    }
+
+    /// What Dispatcharr says when asked for a channel's HLS session.
+    enum DispatcharrAnswer: Equatable { case playlist(URL), busy, failed }
+
+    /// One request for the channel's HLS session: its playlist address (the redirect), "busy"
+    /// (503: still freeing the previous channel; 500: not started in time; no answer at all),
+    /// or a failure (any other answer, a 404 say).
+    nonisolated static func ask(_ url: URL, headers: [String: String]?) async -> DispatcharrAnswer {
+        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
+        headers?.forEach { req.setValue($1, forHTTPHeaderField: $0) }
+        // No answer at all (Wi-Fi blip, Dispatcharr restarting): ask again shortly, like "busy",
+        // rather than handing the player the channel link (which brings back the stray viewers).
+        guard let (_, resp) = try? await URLSession.shared.data(for: req, delegate: NoRedirect.shared),
+              let http = resp as? HTTPURLResponse else { return .busy }
+        if (300..<400).contains(http.statusCode), let loc = http.value(forHTTPHeaderField: "Location"),
+           let next = URL(string: loc, relativeTo: url)?.absoluteURL { return .playlist(next) }
+        if http.statusCode == 503 || http.statusCode == 500 { return .busy }
+        return .failed
     }
 
     /// Ask where the playlist really lives, without going there: read the redirect's Location
@@ -265,15 +356,6 @@ final class PlaybackController {
                         newRequest: URLRequest) async -> URLRequest? { nil }
     }
 
-    private static func isDenied(_ error: Error?) -> Bool {
-        var e = error as NSError?
-        while let n = e {
-            if [401, 403, -1102, -12660].contains(n.code) { return true }
-            if n.localizedDescription.localizedCaseInsensitiveContains("permission") { return true }
-            e = n.userInfo[NSUnderlyingErrorKey] as? NSError
-        }
-        return false
-    }
 }
 
 extension Channel {

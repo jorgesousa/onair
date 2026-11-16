@@ -115,6 +115,8 @@ struct ContentView: View {
             withAnimation(Motion.if(reduce, .easeOut(duration: 0.22))) { watching = false }
         }
         .onChange(of: playback.current?.id) { _, _ in wake(instant: true) }
+        // Home (Dispatcharr): one TV, several screens. Picking goes through the selection, as a click does.
+        .followsHome(playback: playback) { c in withAnimation(Motion.if(reduce, Motion.snap)) { selection = c.id } }
         // Armed when loading starts, so the rows already know it when they first appear.
         .onChange(of: store.isLoading) { _, loading in
             if loading {
@@ -307,11 +309,10 @@ struct ContentView: View {
                 Button("Remove “\(p.name)”", role: .destructive) { store.remove(p) }
             }
         } label: {
-            Text((store.selectedPlaylist?.name ?? "No playlist").uppercased())
-                .font(Brand.display(9.5, .semibold)).tracking(1).lineLimit(1)
+            PlaylistLabel(name: store.selectedPlaylist?.name ?? "No playlist", size: 9.5)
         }
         .menuStyle(.borderlessButton)
-        .menuIndicator(.visible)
+        .menuIndicator(.hidden)
         .tint(Brand.dim)
         .fixedSize()
         .disabled(store.playlists.isEmpty)
@@ -546,13 +547,13 @@ struct ContentView: View {
                     .allowsHitTesting(false)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
-            if let f = playback.failed {
-                HStack(spacing: 10) {
-                    Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(Brand.ink)
-                    Text(f).font(.system(size: 12, weight: .semibold)).foregroundStyle(Brand.ink)
-                }
-                .padding(.horizontal, 14).padding(.vertical, 9)
-                .background(Brand.signal, in: .capsule)
+            // Final states are cards, on the Mac stage even while the picture is on the TV.
+            if playback.offAir {
+                OffAirView(channel: c).transition(.opacity)
+            } else if playback.cantPlay {
+                CantPlayView(channel: c).transition(.opacity)
+            } else if let f = playback.failed {
+                StageNotice(text: f, until: playback.holdUntil, size: 12)
                 .padding(20)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -560,6 +561,8 @@ struct ContentView: View {
         .animation(Motion.if(reduce, Motion.fade), value: playback.isTuning)
         .animation(Motion.if(reduce, Motion.enter), value: playback.failed)
         .animation(Motion.if(reduce, Motion.enter), value: playback.soundOnly)
+        .animation(Motion.if(reduce, Motion.fade), value: playback.offAir)
+        .animation(Motion.if(reduce, Motion.fade), value: playback.cantPlay)
     }
 }
 

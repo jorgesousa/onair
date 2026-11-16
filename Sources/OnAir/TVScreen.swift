@@ -105,6 +105,12 @@ struct TVScreenView: View {
                 .animation(reduce ? Motion.fade : Motion.fade.delay(0.12), value: playback.isTuning)
             if let c = playback.current {
                 TuningOverlay(channel: c, tuning: playback.isTuning)
+                // The TV says it too, with the same card as the Mac's stage.
+                if playback.offAir {
+                    OffAirView(channel: c).transition(.opacity)
+                } else if playback.cantPlay {
+                    CantPlayView(channel: c).transition(.opacity)
+                }
             }
             if let c = osd {
                 ChannelCard(channel: c, number: number(c), now: programme(c), clock: .now)
@@ -116,6 +122,8 @@ struct TVScreenView: View {
             }
         }
         .animation(Motion.if(reduce, Motion.fade), value: playback.isTuning)
+        .animation(Motion.if(reduce, Motion.fade), value: playback.offAir)
+        .animation(Motion.if(reduce, Motion.fade), value: playback.cantPlay)
         // Power on from a line, and off into one.
         .scaleEffect(x: 1, y: reduce || (on && tv.powered) ? 1 : 0.006)
         .opacity(reduce && !(on && tv.powered) ? 0 : 1)

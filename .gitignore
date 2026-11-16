@@ -3,8 +3,9 @@ build/
 .test-account
 .DS_Store
 .swiftpm/
-brag-output/
+brag-output*/
 .superpowers/
 iPad/build/
 xcuserdata/
 *.xcuserstate
+iPad/build-*/

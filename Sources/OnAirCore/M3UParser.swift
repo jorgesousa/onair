@@ -60,6 +60,15 @@ enum M3UParser {
         return v.isEmpty ? nil : v
     }
 
+    /// The guide the list points to in its first line (`url-tvg` or `x-tvg-url`), for lists
+    /// that don't come from an Xtream account — Dispatcharr's, for one. The first if there are several.
+    static func guideURL(in text: String, base: URL?) -> URL? {
+        guard let header = text.split(whereSeparator: \.isNewline).first.map(String.init), header.hasPrefix("#EXTM3U") else { return nil }
+        guard let value = attribute("url-tvg", in: header) ?? attribute("x-tvg-url", in: header),
+              let first = value.split(separator: ",").first?.trimmingCharacters(in: .whitespaces), !first.isEmpty else { return nil }
+        return URL(string: first, relativeTo: base)?.absoluteURL
+    }
+
     private static func attribute(_ key: String, in line: String) -> String? {
         guard let r = line.range(of: " " + key + "=\"") ?? line.range(of: key + "=\"") else { return nil }
         let rest = line[r.upperBound...]

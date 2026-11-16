@@ -4,7 +4,6 @@ import SwiftUI
 struct PadAbout: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    private let source = URL(string: "https://github.com/jorgesousa/onair")!
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
@@ -39,21 +38,10 @@ struct PadAbout: View {
                     }
                     .rise(0.12)
                     Rectangle().fill(Brand.line).frame(height: 1)
-                    HStack(spacing: 12) {
-                        Button { openURL(source) } label: {
-                            Label("Source code", systemImage: "chevron.left.forwardslash.chevron.right")
-                                .font(Brand.display(11)).tracking(0.8).foregroundStyle(Brand.paper)
-                                .padding(.horizontal, 18).frame(minHeight: 44)
-                                .background(Brand.raised, in: .capsule)
-                        }
-                        .buttonStyle(PressStyle())
-                        Spacer()
-                        Button("Done") { dismiss() }
-                            .font(Brand.display(12)).foregroundStyle(Brand.ink)
-                            .padding(.horizontal, 22).frame(minHeight: 44)
-                            .background(Brand.paper, in: .capsule)
-                            .buttonStyle(PressStyle())
-                            .accessibilityIdentifier("about-done")
+                    // The same pieces as the Mac's About: two links out, and Done.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 12) { links; Spacer(); done }
+                        VStack(alignment: .leading, spacing: 14) { HStack(spacing: 12) { links }; done }
                     }
                     .rise(0.2)
                     Text("MIT licence. Archivo Black by Omnibus-Type, SIL Open Font License.\nBy Jorge Sousa.")
@@ -65,5 +53,14 @@ struct PadAbout: View {
         }
         .background(Brand.ink)
         .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder private var links: some View {
+        LinkPill(title: "Source code", symbol: "chevron.left.forwardslash.chevron.right") { openURL(ProjectPages.source) }
+        LinkPill(title: "Report a problem", symbol: "exclamationmark.bubble") { openURL(ProjectPages.issues) }
+    }
+
+    private var done: some View {
+        PrimaryButton(title: "Done") { dismiss() }.accessibilityIdentifier("about-done")
     }
 }

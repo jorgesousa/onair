@@ -19,6 +19,11 @@ final class Store {
     /// What's on, by lower-cased XMLTV channel id.
     var guide: [String: [Programme]] = [:]
     private var guideLoadedAt: Date?
+    /// The guide an M3U list points to in its header (Dispatcharr's, for one), used when the
+    /// playlist isn't an Xtream account.
+    private var listGuideURL: URL?
+    /// The programme guide is being fetched (rows can say so instead of filling in abruptly).
+    private(set) var guideLoading = false
 
     var isLoading = false
     var error: String?
@@ -108,7 +113,7 @@ final class Store {
     /// Drops everything loaded for the previous playlist.
     func reset() {
         channels = []; movies = []; series = []; loaded = []; error = nil
-        guide = [:]; guideLoadedAt = nil
+        guide = [:]; guideLoadedAt = nil; listGuideURL = nil
         library = .live
     }
 
@@ -130,7 +135,9 @@ final class Store {
                 } else if case .m3u(let location) = p.source {
                     let url = PlaylistFiles.url(for: location)
                     guard let url else { throw URLError(.badURL) }
-                    channels = M3UParser.parse(String(decoding: try await Net.data(url), as: UTF8.self), base: url)
+                    let text = String(decoding: try await Net.data(url), as: UTF8.self)
+                    channels = M3UParser.parse(text, base: url)
+                    listGuideURL = M3UParser.guideURL(in: text, base: url)
                 }
                 if channels.isEmpty { error = "This playlist has no channels." }
                 Task { await loadGuide() }
@@ -163,12 +170,23 @@ final class Store {
 
     /// Downloads the account's XMLTV guide at most every 3 hours.
     func loadGuide(force: Bool = false) async {
-        guard let url = account?.xmltvURL else { return }
+        guard let url = account?.xmltvURL ?? listGuideURL else { return }
+        let key = account.map { $0.base + "|" + $0.username } ?? url.absoluteString
+        // What was saved last time shows at once; the fresh copy replaces it quietly.
+        if guide.isEmpty, let saved = await Task.detached(priority: .userInitiated, operation: { GuideCache.load(key: key) }).value {
+            guide = GuideCache.trimmed(saved)
+        }
         if !force, let t = guideLoadedAt, t.timeIntervalSinceNow > -3 * 3600 { return }
         guideLoadedAt = .now
+        guideLoading = guide.isEmpty      // placeholders only while there is nothing to show
+        defer { guideLoading = false }
         guard let data = try? await Net.data(url) else { guideLoadedAt = nil; return }
-        let parsed = await Task.detached(priority: .utility) { XMLTV.parse(data) }.value
-        if !parsed.isEmpty { guide = parsed }
+        let fresh = await Task.detached(priority: .utility) { () -> [String: [Programme]] in
+            let parsed = GuideCache.trimmed(XMLTV.parse(data))
+            if !parsed.isEmpty { try? GuideCache.save(parsed, key: key) }
+            return parsed
+        }.value
+        if !fresh.isEmpty { guide = fresh }
     }
 
     private static let needsXtream = NSError(domain: "OnAir", code: 0, userInfo: [NSLocalizedDescriptionKey:

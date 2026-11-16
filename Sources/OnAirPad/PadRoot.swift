@@ -31,10 +31,19 @@ struct PadRoot: View {
     @State private var chromeTask: Task<Void, Never>?
     @State private var pending: Channel.ID?     // swiped to, tuned once the swiping settles
     @State private var pendingTask: Task<Void, Never>?
+    @State private var holdTuning = false        // see `pickFromSide`
+    @State private var holdRail = false          // landscape, nothing on: the list stays a beat after the touch
+    @State private var sideTask: Task<Void, Never>?
     @State private var typed = ""
     @State private var typedTask: Task<Void, Never>?
     @State private var dragY: CGFloat = 0
     @State private var fill = false
+    // Rotation (or the list moving under/beside the picture): only the picture travels; the list
+    // and the now bar wait unseen at their new place, then settle in.
+    @State private var settledKey = ""
+    @State private var surfaces: Double = 1      // the now bar
+    @State private var listSurface: Double = 1   // the list, a beat after the bar
+    @State private var settleTask: Task<Void, Never>?
 
     static let railWidth: CGFloat = 361
 
@@ -45,7 +54,7 @@ struct PadRoot: View {
             let inset = g.safeAreaInsets
             let full = CGSize(width: g.size.width + inset.leading + inset.trailing,
                               height: g.size.height + inset.top + inset.bottom)
-            let mode = PadLayout.mode(size: full, playing: playback.current != nil, expanded: expanded)
+            let mode = PadLayout.mode(size: full, playing: playback.current != nil && !holdRail, expanded: expanded)
             content(full: full, inset: inset, mode: mode)
                 .frame(width: full.width, height: full.height)
                 .position(x: full.width / 2 - inset.leading, y: full.height / 2 - inset.top)
@@ -56,11 +65,12 @@ struct PadRoot: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("root")
                 .accessibilityValue(String(describing: mode))
-                .animation(Motion.if(reduce, .easeOut(duration: 0.22)), value: mode)
         }
         .background(Brand.ink.ignoresSafeArea())
         .sheet(isPresented: $showAdd) { AddPlaylistView() }
         .sheet(isPresented: $showAbout) { PadAbout() }
+        // Home (Dispatcharr): one TV, several screens.
+        .followsHome(playback: playback) { pick($0) }
         .task { await store.loadIfNeeded() }
         .task {
             while !Task.isCancelled {
@@ -95,22 +105,32 @@ struct PadRoot: View {
         let wide = full.width > full.height
         let stage = stageFrame(full: full, inset: inset, mode: mode, wide: wide)
         let rail = railFrame(full: full, inset: inset, mode: mode, wide: wide, stage: stage)
+        let key = "\(mode)|\(wide)"
+        let settling = !settledKey.isEmpty && key != settledKey && Self.settles(from: settledKey, to: key)
+        let shown = settling ? 0 : surfaces
+        let listShown = settling ? 0 : listSurface
         ZStack(alignment: .topLeading) {
             // 1. The picture (or, with nothing on, the manifesto / the resume card).
             stageLayer(mode: mode, shown: stage.height > 0, inset: inset)
                 .frame(width: stage.width, height: stage.height)
+                .animation(Motion.if(reduce, Self.leave), value: key)
                 .offset(x: stage.minX, y: stage.minY)
 
             // 2. Stacked: what's on, docked under the picture.
             if mode == .stacked, let c = playback.current {
                 NowBar(channel: c, now: store.nowPlaying(c, at: clock), next: store.upNext(c, at: clock),
-                       clock: clock, favourite: store.favorites.contains(c.id), floating: false, compact: true) {
+                       clock: clock, favourite: store.favorites.contains(c.id), floating: false, compact: true,
+                       narrow: full.width < 500) {
                     store.toggleFavorite(c)
                 }
                 .frame(width: full.width)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
                 .offset(x: 0, y: stage.maxY)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .opacity(shown)
+                .scaleEffect(reduce ? 1 : 0.98 + 0.02 * shown, anchor: .top)
+                .offset(y: reduce ? 0 : (1 - shown) * 24)
+                .transition(.identity)
+                .transaction(value: key) { t in if settling { t.animation = nil } }
             }
 
             // 3. Watch: dim behind the open list; a tap there closes it.
@@ -124,7 +144,7 @@ struct PadRoot: View {
             // 4. The list.
             PadRail(filter: $filter, search: $search, compact: $compact, selection: selection,
                     firstLoad: firstLoad, clock: clock, motion: motion,
-                    onPick: pick, onAdd: { showAdd = true }, onAbout: { showAbout = true },
+                    onPick: { pick($0, fromList: true) }, onAdd: { showAdd = true }, onAbout: { showAbout = true },
                     onSearchFocus: { searching = $0 }, condensed: mode == .stacked)
                 .padding(.top, rail.minY == 0 ? inset.top : 0)
                 .padding(.bottom, inset.bottom)
@@ -135,6 +155,10 @@ struct PadRoot: View {
                 }
                 .shadow(color: .black.opacity(mode == .watch ? 0.6 * peekProgress : 0), radius: 30)
                 .offset(x: rail.minX, y: rail.minY)
+                .opacity(mode == .watch ? 1 : listShown)
+                .scaleEffect(reduce || mode == .watch ? 1 : 0.98 + 0.02 * listShown, anchor: .top)
+                .offset(y: reduce || mode == .watch ? 0 : (1 - listShown) * 24)
+                .transaction(value: key) { t in if settling { t.animation = nil } else if t.animation == nil, !reduce { t.animation = .easeOut(duration: 0.22) } }
                 .gesture(mode == .watch ? closePeekDrag : nil)
 
             // 5. Watch: the left edge pulls the list in.
@@ -146,6 +170,30 @@ struct PadRoot: View {
         }
         .frame(width: full.width, height: full.height, alignment: .topLeading)
         .clipped()
+        .onChange(of: key, initial: true) { old, new in settle(from: old, to: new) }
+    }
+
+    /// Rotating, or the list moving between beside/under the picture, re-lays the list out
+    /// completely: animating that reads as lumpy. Those surfaces hide, jump, then settle in.
+    private static func settles(from old: String, to new: String) -> Bool {
+        old.hasSuffix("true") != new.hasSuffix("true") || old.hasPrefix("stacked") || new.hasPrefix("stacked")
+    }
+
+    private func settle(from old: String, to new: String) {
+        guard !settledKey.isEmpty, old != new, Self.settles(from: old, to: new) else { settledKey = new; return }
+        var t = Transaction(); t.disablesAnimations = true
+        withTransaction(t) { surfaces = 0; listSurface = 0; settledKey = new }
+        settleTask?.cancel()
+        settleTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(reduce ? 0.05 : 0.35))   // after the system has finished turning
+            guard !Task.isCancelled else { return }
+            // A critically damped spring settles without the snap of a sharp ease-out.
+            let settleIn: Animation = reduce ? Motion.fade : .spring(duration: 0.55, bounce: 0)
+            withAnimation(settleIn) { surfaces = 1 }
+            try? await Task.sleep(for: .seconds(reduce ? 0 : 0.08))
+            guard !Task.isCancelled else { return }
+            withAnimation(settleIn) { listSurface = 1 }
+        }
     }
 
     private func stageFrame(full: CGSize, inset: EdgeInsets, mode: PadLayoutMode, wide: Bool) -> CGRect {
@@ -185,14 +233,18 @@ struct PadRoot: View {
     @ViewBuilder private func stageLayer(mode: PadLayoutMode, shown: Bool, inset: EdgeInsets) -> some View {
         let watching = playback.current != nil && mode != .rail
         ZStack {
-            PadStage(fill: fill)
+            PadStage(fill: fill, holdTuning: holdTuning)
                 .offset(y: watching ? Swipe.rubberBand(dragY) : 0)
-            if playback.current == nil {
+                // Swiped away from: the picture steps back until the new channel starts tuning.
+                .opacity(pending != nil ? 0.4 : 1)
+                .animation(.easeOut(duration: 0.2), value: pending != nil)
+            // Held on through a side-list pick, so the stage never flashes black before it opens up.
+            if playback.current == nil || holdRail {
                 if let last = playback.lastStopped {
-                    ResumeCard(channel: last) { pick(last) }.background(Brand.ink)
+                    ResumeCard(channel: last) { pick(last) }.background(Brand.ink).transition(.opacity)
                 } else if shown {
                     Manifesto(action: store.playlists.isEmpty ? ("Add a playlist", { showAdd = true }) : nil)
-                        .background(Brand.ink)
+                        .background(Brand.ink).transition(.opacity)
                 }
             }
             if watching {
@@ -211,12 +263,14 @@ struct PadRoot: View {
                 // On iPad the controls leave the tree when hidden (no AppKit view to fade under),
                 // so nothing invisible can be tapped.
                 if chrome && controlsShown {
-                    PadControls(mode: mode, expanded: expanded, lastName: lastChannelName,
-                                onList: { setPeek(true) }, onLast: backToLast, onExpand: toggleExpanded)
-                        .padding(.horizontal, 20)
+                    PadControls(mode: mode, expanded: expanded || (Platform.phone && mode == .watch), lastName: lastChannelName,
+                                onList: { setPeek(true) }, onLast: backToLast, onExpand: { toggleExpanded(wide: mode == .watch) })
+                        // Full screen: clear of the Dynamic Island and the phone's rounded corners.
+                        .padding(.leading, 20 + (mode == .watch ? inset.leading : 0))
+                        .padding(.trailing, 20 + (mode == .watch ? inset.trailing : 0))
                         .padding(.top, (mode == .watch ? inset.top : 0) + 16)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .transition(.opacity)
+                        .transition(reduce ? .opacity : .opacity.combined(with: .offset(y: -6)))
                 }
             }
         }
@@ -231,9 +285,9 @@ struct PadRoot: View {
         let id = pending ?? playback.current?.id
         if let c = store.items.first(where: { $0.id == id }) ?? playback.current {
             ChannelCard(channel: c, number: number(of: c), typed: typed.isEmpty ? nil : typed,
-                        now: store.nowPlaying(c, at: clock), clock: clock, scale: mode == .watch ? 0.55 : 0.4)
-                .padding(.leading, (mode == .watch ? 36 : 20) + inset.leading)
-                .padding(.bottom, (mode == .watch ? 36 : 20) + (mode == .watch ? inset.bottom : 0))
+                        now: store.nowPlaying(c, at: clock), clock: clock, scale: cardScale(mode))
+                .padding(.leading, cardMargin(mode) + inset.leading)
+                .padding(.bottom, cardMargin(mode) + (mode == .watch ? inset.bottom : 0))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 .allowsHitTesting(false)
                 .opacity(chrome || pending != nil || !typed.isEmpty ? 1 : 0)
@@ -241,6 +295,14 @@ struct PadRoot: View {
                 .accessibilityIdentifier("card")
                 .accessibilityValue(number(of: c).map { String(format: "%03d", $0) } ?? "")
         }
+    }
+
+    /// The card is sized for an iPad; on a phone it would cover the play.
+    private func cardScale(_ mode: PadLayoutMode) -> CGFloat {
+        Platform.phone ? (mode == .watch ? 0.42 : 0.32) : (mode == .watch ? 0.55 : 0.4)
+    }
+    private func cardMargin(_ mode: PadLayoutMode) -> CGFloat {
+        Platform.phone ? (mode == .watch ? 20 : 12) : (mode == .watch ? 36 : 20)
     }
 
     private var stageState: String {
@@ -251,7 +313,7 @@ struct PadRoot: View {
 
     // MARK: Picking and the peek
 
-    private func pick(_ c: Channel) {
+    private func pick(_ c: Channel, fromList: Bool = false) {
         // Already on: re-tuning would reopen the provider's only connection for nothing.
         if c.id == playback.current?.id {
             selection = c.id
@@ -259,12 +321,44 @@ struct PadRoot: View {
             return
         }
         if let s = selection, s != c.id { lastChannel = s }
-        selection = c.id
+        sideTask?.cancel(); holdTuning = false; holdRail = false
+        // Landscape only (iPad and iPhone): the list that slid in from the edge, or the side list
+        // with nothing on. Portrait keeps the sliding highlight below.
+        if fromList, !reduce, peek || (playback.current == nil && settledKey.hasSuffix("true")) {
+            pickFromSide(c)
+            return
+        }
+        // A tap slides the on-air highlight to the row (as with the Mac's mouse); swipes and keys jump.
+        if fromList { withAnimation(Motion.if(reduce, Motion.snap)) { selection = c.id } } else { selection = c.id }
         session.play(c)
         store.markPlayed(c)
         if peek { setPeek(false) }
         if chrome == false { wake(controls: false) }
     }
+
+    /// One thing moves at a time: the row lights at once (the list is about to leave, so no
+    /// slide); a beat later the list leaves as the picture opens up with the "tuning in" card
+    /// fading in; the channel card only once the list has gone. The stream starts on the touch.
+    private func pickFromSide(_ c: Channel) {
+        selection = c.id
+        holdTuning = true
+        if playback.current == nil { holdRail = true }
+        session.play(c)
+        store.markPlayed(c)
+        sideTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.12))
+            guard !Task.isCancelled else { return }
+            // The list leaves as the picture opens up already tuning: never an empty, black stage.
+            withAnimation(Self.leave) { holdRail = false; peek = false; peekDrag = 0 }
+            holdTuning = false
+            try? await Task.sleep(for: .seconds(0.3))
+            guard !Task.isCancelled else { return }
+            if chrome == false { wake(controls: false) }
+        }
+    }
+
+    /// The list leaving and the picture opening up: one critically damped movement.
+    static let leave = Animation.spring(duration: 0.35, bounce: 0)
 
     private func number(of c: Channel) -> Int? { visible.firstIndex { $0.id == c.id }.map { $0 + 1 } }
 
@@ -280,7 +374,13 @@ struct PadRoot: View {
         wake(controls: false)
     }
 
-    private func toggleExpanded() {
+    /// iPhone: turn the screen (portrait ↔ landscape Watch). iPad: the picture fills the window.
+    private func toggleExpanded(wide: Bool) {
+        if let way = FullScreenTurn.target(phone: Platform.phone, wide: wide) {
+            expanded = false
+            PhoneTurn.turn(to: way)
+            return
+        }
         withAnimation(Motion.if(reduce, .easeOut(duration: 0.22))) { expanded.toggle() }
     }
 
@@ -335,9 +435,9 @@ struct PadRoot: View {
             Button("Last channel") { backToLast() }.keyboardShortcut(.delete, modifiers: [])
             Button("Last channel ") { backToLast() }.keyboardShortcut(.deleteForward, modifiers: [])
             Button("Close") {
-                if peek { setPeek(false) } else if expanded { toggleExpanded() }
+                if peek { setPeek(false) } else if expanded { toggleExpanded(wide: true) }
             }.keyboardShortcut(.escape, modifiers: [])
-            Button("Full screen") { if playback.current != nil { toggleExpanded() } }
+            Button("Full screen") { if playback.current != nil { toggleExpanded(wide: false) } }
                 .keyboardShortcut(.return, modifiers: [])
             ForEach(0..<10, id: \.self) { d in
                 Button("Channel digit \(d)") { type(d) }.keyboardShortcut(KeyEquivalent(Character("\(d)")), modifiers: [])
@@ -350,10 +450,13 @@ struct PadRoot: View {
     /// Shows the card (and, after a tap, the controls), then hides them after 3 s.
     private func wake(controls: Bool) {
         chromeTask?.cancel()
-        var t = Transaction(); t.disablesAnimations = true
-        withTransaction(t) {
-            chrome = true
-            if controls { controlsShown = true }
+        if controls {
+            // A tap: the bar comes in the way it leaves (fade + 6 pt from above).
+            withAnimation(Motion.if(reduce, .easeOut(duration: 0.15))) { chrome = true; controlsShown = true }
+        } else {
+            // A zap: the card is there at once (it's feedback, not decoration).
+            var t = Transaction(); t.disablesAnimations = true
+            withTransaction(t) { chrome = true }
         }
         chromeTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(3))

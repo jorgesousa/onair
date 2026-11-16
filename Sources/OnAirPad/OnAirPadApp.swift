@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct OnAirPadApp: App {
+    @UIApplicationDelegateAdaptor(PhoneTurn.self) private var turn
     @State private var store = Store()
     @State private var playback: PlaybackController
     @State private var session: PadSession

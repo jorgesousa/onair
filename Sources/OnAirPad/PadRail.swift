@@ -25,6 +25,7 @@ struct PadRail: View {
     @AppStorage(PadSession.autoPiPKey) private var autoPiP = true
 
     private var visible: [Channel] { store.items(for: filter, search: search) }
+    static let showsCategories = false
 
     var body: some View {
         Group {
@@ -45,31 +46,30 @@ struct PadRail: View {
                 if searchOpen || !search.isEmpty {
                     HStack(spacing: 8) {
                         searchField
-                        Button("Cancel") {
-                            search = ""; searchFocused = false
-                            withAnimation(Motion.if(reduce, Motion.quick)) { searchOpen = false }
-                        }
+                        Button("CANCEL") { closeSearch() }
                         .font(Brand.display(11)).tracking(0.8).foregroundStyle(Brand.dim)
                         .frame(minWidth: 64, minHeight: 44)
                     }
                     .padding(.horizontal, 12)
-                    .transition(.opacity)
+                    .transition(searchSwap)
                 } else {
                     HStack(spacing: 6) {
                         filterBar.frame(maxWidth: .infinity)
-                        Button {
-                            withAnimation(Motion.if(reduce, Motion.quick)) { searchOpen = true }
-                            searchFocused = true
-                        } label: {
+                        // Labels in this row sit on one line: Tags leave 7 pt under the text for the
+                        // bars underline, so the icon lifts by half of that to centre on the words.
+                        Button { openSearch() } label: {
                             Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(Brand.dim).frame(width: 44, height: 44).contentShape(.rect)
+                                .foregroundStyle(Brand.dim).frame(width: 44, height: 44)
+                                .background { Circle().fill(Brand.raised).matchedGeometryEffect(id: "search", in: motion) }
+                                .contentShape(.rect)
                         }
                         .buttonStyle(PressStyle())
+                        .offset(y: -3.5)
                         .accessibilityLabel("Search channels")
-                        playlistMenu
+                        playlistMenu(compact: true)
                     }
                     .padding(.leading, 20).padding(.trailing, 8)
-                    .transition(.opacity)
+                    .transition(searchSwap)
                 }
             }
             .frame(height: 60)
@@ -83,7 +83,7 @@ struct PadRail: View {
             HStack(spacing: 12) {
                 Wordmark(size: 17)
                 Spacer()
-                playlistMenu
+                playlistMenu(compact: false)
                 Button(action: onAdd) {
                     Image(systemName: "plus").font(.system(size: 17, weight: .semibold)).foregroundStyle(Brand.dim)
                         .frame(width: 44, height: 44).contentShape(.rect)
@@ -119,12 +119,37 @@ struct PadRail: View {
             }
         }
         .padding(.leading, 16).padding(.trailing, 6).frame(height: 48)
-        .background(Brand.raised, in: .capsule)
+        .background { Capsule().fill(Brand.raised).matchedGeometryEffect(id: "search", in: motion) }
         .overlay(Capsule().strokeBorder(Brand.signal.opacity(searchFocused ? 0.7 : 0), lineWidth: 1))
         .animation(Motion.quick, value: searchFocused)
     }
 
-    private var playlistMenu: some View {
+    // MARK: Search under the picture
+
+    /// The field grows out of the 🔍 (and back into it) on a calm spring; what's inside each
+    /// row fades out fast and in a beat later, so the two rows never show at once.
+    private var searchMorph: Animation { reduce ? Motion.fade : .spring(duration: 0.45, bounce: 0) }
+
+    private var searchSwap: AnyTransition {
+        reduce ? .opacity : .asymmetric(insertion: .opacity.animation(.easeOut(duration: 0.22).delay(0.1)),
+                                        removal: .opacity.animation(.easeOut(duration: 0.12)))
+    }
+
+    private func openSearch() {
+        withAnimation(searchMorph) { searchOpen = true }
+        // The keyboard rises once the field has opened, not on top of it.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(reduce ? 0 : 0.3))
+            if searchOpen { searchFocused = true }
+        }
+    }
+
+    private func closeSearch() {
+        searchFocused = false          // keyboard down first
+        withAnimation(searchMorph) { search = ""; searchOpen = false }
+    }
+
+    private func playlistMenu(compact: Bool) -> some View {
         Menu {
             ForEach(store.playlists) { p in
                 Button { store.selectedPlaylistID = p.id } label: {
@@ -141,13 +166,15 @@ struct PadRail: View {
                 Button("Remove “\(p.name)”", role: .destructive) { store.remove(p) }
             }
         } label: {
-            HStack(spacing: 5) {
-                Text((store.selectedPlaylist?.name ?? "No playlist").uppercased())
-                    .font(Brand.display(11, .semibold)).tracking(1).lineLimit(1)
-                Image(systemName: "chevron.down").font(.system(size: 9, weight: .black))
+            if compact {
+                // Same as Category beside it: Tag type, small chevron, the same space underneath.
+                PlaylistLabel(name: store.selectedPlaylist?.name ?? "No playlist", size: 9.5)
+                    .padding(.bottom, 7)
+                .frame(minWidth: 44, minHeight: 44).contentShape(.rect)
+            } else {
+                PlaylistLabel(name: store.selectedPlaylist?.name ?? "No playlist", size: 11)
+                    .frame(minHeight: 44).contentShape(.rect)
             }
-            .foregroundStyle(Brand.dim)
-            .frame(minHeight: 44).contentShape(.rect)
         }
         .menuIndicator(.hidden)
         .fixedSize()
@@ -160,7 +187,8 @@ struct PadRail: View {
             FilterButton(title: "Saved", on: filter == .favorites, motion: motion) { pick(.favorites) }
             FilterButton(title: "Recent", on: filter == .recents, motion: motion) { pick(.recents) }
             Spacer()
-            if store.groups.count > 1 {
+            // Category is hidden on iPad for now (ROADMAP: revisit how categories should work here).
+            if Self.showsCategories, store.groups.count > 1 {
                 let picked: String? = { if case .group(let g) = filter { g } else { nil } }()
                 Menu {
                     ForEach(store.groups, id: \.self) { g in Button(g) { pick(.group(g)) } }
@@ -200,13 +228,15 @@ struct PadRail: View {
                         detail: search.isEmpty ? nil : "Nothing called “\(search)”.")
         } else {
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
+                // The system list (UIKit underneath): it reuses rows and prepares them before they
+                // scroll into view, which an older iPad needs to keep up with a fast flick.
+                List {
                         ForEach(Array(list.enumerated()), id: \.element.id) { i, c in
                             ChannelRow(number: i + 1, channel: c,
                                        now: store.nowPlaying(c, at: clock), next: store.upNext(c, at: clock),
                                        onAir: c.id == selection, favourite: store.favorites.contains(c.id),
-                                       clock: clock, motion: motion, compact: compact)
+                                       clock: clock, motion: motion, compact: compact, uniform: true,
+                                       guideLoading: store.guideLoading)
                                 .frame(minHeight: compact ? 44 : 58)
                                 .rise(Double(i) * 0.03, distance: 8, active: firstLoad && i < 24,
                                       animation: .timingCurve(0.23, 1, 0.32, 1, duration: 0.3))
@@ -222,12 +252,17 @@ struct PadRail: View {
                                 .accessibilityElement(children: .combine)
                                 .accessibilityAddTraits(.isButton)
                                 .accessibilityIdentifier("channel-\(c.displayName)")
+                                .listRowInsets(EdgeInsets())
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                         }
-                    }
-                    .padding(.vertical, 6)
-                    .id(filter)
-                    .transition(.opacity.combined(with: .offset(y: 8)))
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .environment(\.defaultMinListRowHeight, compact ? 44 : 58)
+                .contentMargins(.vertical, 6, for: .scrollContent)
+                .id(filter)
+                .transition(.opacity.combined(with: .offset(y: 8)))
                 .scrollIndicators(.never)
                 .scrollDismissesKeyboard(.immediately)
                 .onAppear { if let selection { proxy.scrollTo(selection, anchor: .center) } }

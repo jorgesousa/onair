@@ -86,3 +86,83 @@ enum Swipe {
         return travel < 0 ? -damped : damped
     }
 }
+
+/// Why a stream stopped, as far as what to do next is concerned.
+enum PlaybackFailure: Equatable {
+    /// The provider said no (usually: the one connection is in use). Retrying straight away
+    /// only counts as another connection.
+    case refused
+    /// This device can't decode the channel's video. Retrying won't change that.
+    case unsupported
+    /// The server is up but can't serve it yet (HTTP 503 / 500): Dispatcharr still holding the
+    /// previous channel, or this one not started in time. Worth a quick retry.
+    case busy
+    /// Anything else: network, a dropped session. Worth retrying.
+    case other
+
+    static func of(_ error: Error?) -> PlaybackFailure {
+        var e = error as NSError?
+        while let n = e {
+            if [-12863, -11833].contains(n.code) { return .unsupported }
+            if [-16849, -16847].contains(n.code) { return .busy }
+            if [401, 403, -1102, -12660].contains(n.code) { return .refused }
+            if n.localizedDescription.localizedCaseInsensitiveContains("permission") { return .refused }
+            e = n.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return .other
+    }
+}
+
+/// After a refusal the app stops trying by itself for a while: the provider keeps a session
+/// for about two minutes after it's left. A tap from the viewer always gets one try now.
+enum Retry {
+    static let holdAfterRefusal: TimeInterval = 120
+
+    static func remaining(until: Date?, at now: Date) -> TimeInterval {
+        guard let until else { return 0 }
+        return max(0, until.timeIntervalSince(now))
+    }
+}
+
+/// iPhone: full screen means turning the picture sideways, like the TV app. The button turns
+/// the screen and holds it there until the phone is held that way; then the phone leads again,
+/// so turning it back upright leaves full screen. The iPad doesn't turn (it sits on a table).
+enum FullScreenTurn {
+    enum Way: Equatable { case portrait, landscape }
+
+    /// Where the full-screen button turns the screen, or nil to stay put.
+    static func target(phone: Bool, wide: Bool) -> Way? {
+        guard phone else { return nil }
+        return wide ? .portrait : .landscape
+    }
+
+    /// Let the phone lead again once it's held the way the button turned the screen.
+    static func release(lockedTo: Way?, held: Way?) -> Bool {
+        guard let lockedTo, let held else { return false }
+        return lockedTo == held
+    }
+}
+
+/// A channel this device can't decode (the format, not the stream): final, like off air.
+enum CantPlay {
+    static let label = "CAN'T PLAY"
+    @MainActor static var line: String { "This \(Platform.device) can't show this channel's video. Pick another channel." }
+}
+
+/// A channel that isn't broadcasting (a PPV between events, a feed the provider has dropped)
+/// would otherwise sit on "Tuning in" / "Reconnecting" forever, which looks like ONAIR's fault.
+/// Give up and say "off air" after a few tries that never showed a thing — but not before 20 s
+/// (Dispatcharr can say "busy" for ~12 s after a channel change), and never for a refusal
+/// (the provider's connection in use has its own wait). A tap on the channel tries again.
+enum OffAir {
+    /// One wording for the state, wherever it shows (stage, TV, notice, VoiceOver).
+    static let label = "OFF AIR"
+    static let line = "Not broadcasting right now. Pick it again to retry."
+    static let message = "Off air · not broadcasting right now"
+
+    /// While the server says "busy", give it 45 s (Dispatcharr frees the previous channel within
+    /// ~12 s, then needs to start this one).
+    static func giveUp(failures: Int, seconds: TimeInterval, everPlayed: Bool, refused: Bool, busy: Bool = false) -> Bool {
+        !everPlayed && !refused && failures >= 3 && seconds >= (busy ? 45 : 20)
+    }
+}

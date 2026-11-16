@@ -2,7 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// iPad: the same sheet, a quarter bigger, read at arm's length. The Mac keeps its sizes.
-private let uiScale: CGFloat = Platform.touch > 0 ? 1.25 : 1
+/// iPad: everything a quarter larger for touch. iPhone and Mac: as designed.
+@MainActor private var uiScale: CGFloat { Platform.touch > 0 && !Platform.phone ? 1.25 : 1 }
 
 struct AddPlaylistView: View {
     @Environment(Store.self) private var store
@@ -77,7 +78,7 @@ struct AddPlaylistView: View {
 
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }
+                Button("CANCEL") { dismiss() }
                     .frame(minWidth: Platform.touch, minHeight: Platform.touch)
                     .buttonStyle(.plain).font(Brand.display(10 * uiScale, .bold)).tracking(1).foregroundStyle(Brand.dim)
                     .keyboardShortcut(.cancelAction)

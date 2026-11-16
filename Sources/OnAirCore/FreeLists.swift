@@ -1,3 +1,6 @@
+#if os(iOS)
+import UIKit
+#endif
 import Foundation
 
 /// Public playlists of channels that are free to watch, from two open projects that only list
@@ -37,7 +40,13 @@ extension FreeList {
 enum Platform {
     #if os(iOS)
     static let touch: CGFloat = 44
+    /// "iPad" or "iPhone", for messages about this device.
+    @MainActor static var device: String { UIDevice.current.model }
+    /// iPhone: the same app as the iPad, with sizes bent for a small screen.
+    @MainActor static var phone: Bool { UIDevice.current.userInterfaceIdiom == .phone }
     #else
     static let touch: CGFloat = 0
+    @MainActor static var device: String { "Mac" }
+    @MainActor static var phone: Bool { false }
     #endif
 }

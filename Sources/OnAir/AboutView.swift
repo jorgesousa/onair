@@ -209,59 +209,6 @@ private struct Command: View {
     }
 }
 
-struct PrimaryButton: View {
-    let title: String
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(title.uppercased()).font(Brand.display(10)).tracking(1).foregroundStyle(Brand.ink)
-                .lineLimit(1).fixedSize()
-                .padding(.horizontal, 16).padding(.vertical, 9)
-                .background(Brand.paper, in: .capsule)
-        }
-        .buttonStyle(PressStyle())
-    }
-}
-
-struct SecondaryButton: View {
-    let title: String
-    let action: () -> Void
-    @State private var hover = false
-    var body: some View {
-        Button(action: action) {
-            Text(title.uppercased()).font(Brand.display(10)).tracking(1).foregroundStyle(hover ? Brand.paper : Brand.dim)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .overlay(Capsule().strokeBorder(Brand.line, lineWidth: 1))
-        }
-        .buttonStyle(PressStyle())
-        .onHover { hover = $0 }
-        .animation(Motion.quick, value: hover)
-    }
-}
-
-private struct LinkPill: View {
-    let title: String
-    let symbol: String
-    let action: () -> Void
-    @State private var hover = false
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
-                Text(title).font(.system(size: 12, weight: .semibold))
-                Image(systemName: "arrow.up.right").font(.system(size: 9, weight: .bold)).opacity(0.6)
-            }
-            .foregroundStyle(hover ? Brand.paper : Brand.dim)
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(hover ? Brand.raised : .clear, in: .capsule)
-            .overlay(Capsule().strokeBorder(Brand.line, lineWidth: 1))
-        }
-        .buttonStyle(PressStyle())
-        .onHover { hover = $0 }
-        .animation(Motion.quick, value: hover)
-    }
-}
-
 /// On shows the colour bars, off is grey: no doubt which it is.
 struct BarsSwitch: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {

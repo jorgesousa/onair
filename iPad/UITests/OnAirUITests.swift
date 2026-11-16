@@ -447,3 +447,20 @@ final class LiveProbe: OnAirUITestCase {
         screenshot("probe")
     }
 }
+
+/// Diagnosis only (ONAIR_PROBE_ARGS): scrolls a real list and photographs the rows.
+final class ScrollProbe: OnAirUITestCase {
+    func testScrollRealList() throws {
+        guard let hex = ProcessInfo.processInfo.environment["ONAIR_PROBE_ARGS"] else { throw XCTSkip("diagnosis only") }
+        app.launchArguments = ["-playlists", "<\(hex)>", "-selected", ProcessInfo.processInfo.environment["ONAIR_PROBE_SELECTED"] ?? ""]
+        app.launch()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'channel-'")).firstMatch.waitForExistence(timeout: 60))
+        sleep(25)                       // the guide
+        screenshot("0-loaded")
+        let list = app.scrollViews.firstMatch
+        list.swipeUp(); screenshot("1-down")
+        sleep(2); screenshot("2-down-later")
+        list.swipeDown(); screenshot("3-up")
+        sleep(2); screenshot("4-up-later")
+    }
+}
