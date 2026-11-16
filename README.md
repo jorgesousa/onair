@@ -5,30 +5,20 @@
 **Just TV.** No ads. No watermarks. No accounts. No tracking.
 **Free and open source. Built like it isn't.**
 
-Free software shouldn't look or feel worse than paid software. ONAIR is built to the same standard as the best paid apps on the Mac, and the code is open so anyone can check every promise. See [docs/BRAND.md](docs/BRAND.md).
+Free software shouldn't look or feel worse than paid software. ONAIR is built to the same standard as the best paid apps, and the code is open so anyone can check every promise. See [docs/BRAND.md](docs/BRAND.md).
 
-ONAIR is an IPTV player for Mac, iPad and iPhone, written in SwiftUI. Add an M3U playlist (a link or a file) or an Xtream Codes account. Channels are numbered like a tuner, and each one shows what's on now. On the Mac, zap with the arrow keys and press Return for full screen. On the iPad and iPhone, tap a channel and swipe up or down on the picture to zap.
+ONAIR plays your TV on the Mac, the iPad and the iPhone. Bring the IPTV subscription you already have, or start with free public channels. Channels are numbered like a tuner and each one shows what's on now, so changing channel feels like a real TV, not like browsing a website.
 
 ONAIR ships with no channels. Use only playlists you're entitled to.
 
-### Free lists
+## What it's like
 
-The add sheet has a **Free** tab with one-click public playlists from [iptv-org](https://github.com/iptv-org/iptv) and [Free-TV/IPTV](https://github.com/Free-TV/IPTV). Both projects only list streams that are free and public: Portugal, Portuguese-language, Free-TV, News, Sports, Movies, Music, Kids, Documentary, and all of iptv-org (over 11,000 channels). They're community lists, so some channels are offline or geo-blocked at any given time, and they carry no programme guide. Edit `Sources/OnAirCore/FreeLists.swift` to change them.
-
-Know another free, legal list? [Suggest it](https://github.com/jorgesousa/onair/issues/new?title=Free%20list%3A%20&labels=free-list) — there's a link to the same form in the app.
-
-### iPad and iPhone
-
-The same app, the same lists, the same look, built from the same code as the Mac (`Sources/OnAirCore`).
-
-- **Portrait:** the picture on top, what's on now under it, the channel list below.
-- **Landscape:** Watch mode. The picture fills the screen, swipe up or down to change channel, and the list peeks in from the left edge.
-- **iPhone:** the full-screen button turns the picture to landscape, like the TV app.
-- AirPlay and Picture in Picture. The screen stays awake while you watch, and the provider connection is let go when nobody is watching, with RESUME one tap away.
-
-### One TV, several screens
-
-Run [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) at home and add its playlist (`http://<dispatcharr>:9191/output/m3u?output_format=hls`) to every ONAIR in the house. Change the channel on the iPhone and the Mac and the iPad follow, over the local network (Bonjour). Dispatcharr shares one provider connection between all of them, so a one-connection subscription can play on several screens at once, one channel at a time.
+- **Zap like a real TV.** Arrow keys on the Mac, a swipe on the iPad and iPhone.
+- **See what's on now** and what's next, on every channel.
+- **The same app everywhere.** Same lists, same look on the Mac, the iPad and the iPhone. Turn the iPhone sideways and the picture fills the screen.
+- **One TV, several screens.** With [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) at home, a one-connection subscription plays on every screen in the house (one channel at a time), and changing the channel on your phone changes it everywhere. [How it works and how to set it up](docs/DISPATCHARR.md).
+- **Free channels in one click.** Public playlists from [iptv-org](https://github.com/iptv-org/iptv) and [Free-TV](https://github.com/Free-TV/IPTV), over 11,000 channels. Know another free, legal list? [Suggest it](https://github.com/jorgesousa/onair/issues/new?title=Free%20list%3A%20&labels=free-list).
+- **It tells you the truth.** A channel that isn't broadcasting says OFF AIR instead of spinning forever.
 
 <a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">
   <img src="docs/onair-poster.jpg" width="860" alt="ONAIR on Mac, iPad and iPhone. Click to watch the 23-second video.">
@@ -36,9 +26,9 @@ Run [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) at home and add it
 
 ▶ <a href="https://github.com/jorgesousa/onair/raw/main/docs/onair.mp4">Watch the 23-second video (with sound)</a>
 
-## Install
+## Get it
 
-From source (macOS 14+, Xcode):
+**Mac** (macOS 14+), from source with Xcode installed:
 
 ```bash
 scripts/build-app.sh --install
@@ -46,13 +36,11 @@ scripts/build-app.sh --install
 
 With Homebrew, once the tap is published: `brew install jorgesousa/tap/onair`.
 
-iPad and iPhone (iOS 17+): open `iPad/OnAir.xcodeproj` in Xcode, pick your device and press Run. It isn't on the App Store yet.
+**iPad and iPhone** (iOS 17+): open `iPad/OnAir.xcodeproj` in Xcode, pick your device and press Run. It isn't on the App Store yet.
 
 ## Updates
 
-When a new version is out, an UPDATE tag appears at the bottom of the channel list and in About ONAIR. Press **Update now**: ONAIR runs `brew update` and `brew upgrade onair` itself, shows the progress, and restarts in the new version. No Terminal needed. If Homebrew belongs to another account on the Mac, the same steps open in Terminal so you can type that account's password. Lists, saved channels and passwords are kept.
-
-A Homebrew install compares with the version the tap serves (what `brew upgrade` installs). Releases are GitHub releases tagged `vX.Y.Z`; see "Releasing a version".
+On the Mac, when a new version is out, an UPDATE tag appears at the bottom of the channel list. Press **Update now** and ONAIR updates itself and restarts. Your lists, saved channels and passwords are kept.
 
 ## Keys
 
@@ -63,35 +51,9 @@ A Homebrew install compares with the version the tap serves (what `brew upgrade`
 | Return | Full screen |
 | ⌘R | Reload playlist |
 
-## How it works
+## For developers
 
-- Per-stream `http-user-agent` / `http-referrer` hints in a list (and `#EXTVLCOPT`) are sent with the stream; some channels need them.
-- `get.php?username=…&password=…` M3U links are read as Xtream accounts, which unlocks the guide.
-- The guide is the account's XMLTV, downloaded once and refreshed every 3 hours. It is not fetched per channel.
-- Playback is AVFoundation, so streams must be HLS. Raw MPEG-TS links are asked for as `/live/…/<id>.m3u8`, which Xtream servers serve.
-- Many providers answer a channel link with a redirect to a session URL. ONAIR resolves it once and plays the session URL: re-requesting the original link on every playlist refresh (what AVFoundation does) opens a new session each time and stalls the stream after ~30 s.
-- A watchdog reconnects on its own when the picture stops for more than a few seconds, the stream fails or ends, or the Mac wakes from sleep, waiting longer after each try (1 s up to 30 s) and never giving up while the channel is picked.
-- Most accounts allow one connection. Switching closes the old stream first and retries a refused one before giving up.
-- A channel that never shows a picture after 3 tries and 20 seconds says OFF AIR instead of reconnecting forever; pick it again to retry. A channel whose video the device can't decode says CAN'T PLAY.
-- Passwords are stored in the Keychain. Everything else is stored in the app's preferences.
-- ONAIR talks to your provider and, once a day, asks GitHub for the latest release number. That request carries nothing about you. Turn it off in About ONAIR → "Check for updates automatically".
-- Films and series are built but hidden (`ContentView.showsLibraries`).
-
-## Releasing a version
-
-```bash
-scripts/release.sh 0.1.2 "- What changed"
-```
-
-The script sets the version in `Support/Info.plist`, tags `vX.Y.Z`, publishes the GitHub release, pins the formula to the new tarball and pushes it to [jorgesousa/homebrew-tap](https://github.com/jorgesousa/homebrew-tap). From then on:
-
-- **ONAIR tells people.** Once a day it asks GitHub for the latest release. If it's newer, an UPDATE tag appears at the bottom of the channel list and in About ONAIR.
-- **The app installs it.** Update now runs `brew upgrade onair` (or `git pull` and the build script for a source build) and restarts ONAIR.
-- **Nothing is lost.** Lists, saved channels and passwords stay across updates.
-
-## Testing
-
-Put a test account in `.test-account` (ignored by Git) with `SERVER`, `USERNAME` and `PASSWORD`, then run `scripts/smoke-test.sh`.
+How playback, providers, the guide and updates work, plus releasing and testing: [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md). The Dispatcharr side, with diagrams: [docs/DISPATCHARR.md](docs/DISPATCHARR.md).
 
 ## Credits
 
