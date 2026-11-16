@@ -48,10 +48,11 @@
 - [ ] Ver no ecrã: cartão CAN'T PLAY, cartão na TV, About do iPad a quebrar em duas linhas
 - [ ] Mac: pôr também o cartão do canal em baixo à esquerda no modo Watch (o canto de cima é do resultado)
 - [ ] iPad: rever as categorias (o filtro Category está escondido no iPad por agora — `PadRail.showsCategories`)
-- [ ] Juntar o ramo `ipad` ao `main` (precisa de OK)
+- [x] Ramo `ipad` junto ao `main` e publicado no GitHub (2026-11-16); a pasta de compilação `iPad/build-device` tirada do histórico antes de publicar
 - [x] Vídeo novo (v6, 23 s) para Mac, iPad e iPhone: cena nova com os três aparelhos a entrar no tempo e a sintonizar o mesmo canal; `docs/onair.mp4`, `docs/onair-poster.jpg`, `docs/onair.gif` (GIF no topo do README). Ferramentas em `brag-output-2026-11-16-171848/work` (ignorado pelo Git)
 - [x] README: iPad e iPhone, "One TV, several screens" (Dispatcharr), instalar no iOS pelo Xcode, OFF AIR / CAN'T PLAY
-- [ ] Publicar README e vídeo (vão com o ramo `ipad`; precisa de OK)
+- [x] README reescrito para quem usa (o técnico foi para `docs/HOW-IT-WORKS.md`); `docs/DISPATCHARR.md` com diagramas (montagem, mudar de canal, correção por canal, estados no ecrã) e passos; `scripts/dispatcharr/onair-fix.sh` no repositório. Commits 21b64be e ee2b1cb
+- [x] README e vídeo publicados com o `main` (2026-11-16)
 
 ## Next
 - [x] TV como segundo ecrã (janela em ecrã inteiro no ecrã da TV), como peça isolada sem mexer na reprodução — esboço em `airplay-experiments:Sources/OnAir/TVScreen.swift`
